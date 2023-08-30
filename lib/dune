@@ -1,0 +1,7 @@
+(library
+  (public_name oclox)
+  (name oclox))
+
+(env
+ (dev
+  (flags :standard -warn-error -27-37)))
