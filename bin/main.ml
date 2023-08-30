@@ -9,8 +9,13 @@
 let run source =
   let open Oclox in
   let scanner = Scanner.init source in
-  let tokens = Scanner.scan_tokens scanner in
-  List.iter (fun token -> Printf.printf "%s\n" (Token.to_string token)) tokens
+  let scan_result = Scanner.scan_tokens scanner in
+  match scan_result with
+  | Ok tokens ->
+      List.iter
+        (fun token -> Printf.printf "%s\n" (Token.to_string token))
+        tokens
+  | Error err -> exit 65
 
 let rec run_prompt () =
   let _ = Printf.printf "> %!" in
