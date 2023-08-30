@@ -12,10 +12,13 @@ let run source =
   let scan_result = Scanner.scan_tokens scanner in
   match scan_result with
   | Ok tokens ->
-      List.iter
-        (fun token -> Printf.printf "%s\n" (Token.to_string token))
-        tokens
-  | Error err -> exit 65
+      let _ =
+        List.iter
+          (fun token -> Printf.printf "%s\n" (Token.to_string token))
+          tokens
+      in
+      true
+  | Error _ -> false
 
 let rec run_prompt () =
   let _ = Printf.printf "> %!" in
@@ -28,7 +31,7 @@ let rec run_prompt () =
 
 let run_file file_name =
   let file_contents = Stdio.In_channel.read_all file_name in
-  run file_contents
+  if not (run file_contents) then exit 65
 
 let _ =
   let args_length = Array.length Sys.argv in

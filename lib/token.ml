@@ -42,6 +42,9 @@ type token_type =
   | TRUE
   | VAR
   | WHILE
+  | COMMENT
+  | WHITESPACE
+  | NEWLINE
   | EOF
 
 type t = { token_type : token_type; line : int }
@@ -91,4 +94,7 @@ let to_string token =
   | TRUE -> "TRUE"
   | VAR -> "VAR"
   | WHILE -> "WHILE"
+  | COMMENT -> "COMMENT"
+  | WHITESPACE -> "WHITESPACE"
+  | NEWLINE -> "NEWLINE"
   | EOF -> "EOF"
