@@ -9,7 +9,7 @@ let advance scanner =
 
 let make_token scanner token_type =
   let token : Token.t = { token_type; line = scanner.line } in
-  Ok (scanner, token)
+  Ok ({ scanner with start = scanner.current }, token)
 
 let match_lexeme scanner ch =
   if is_at_end scanner then (scanner, false)
@@ -35,10 +35,6 @@ let rec advance_comment scanner =
       advance_comment scanner
 
 let rec make_string_token scanner =
-  let _ =
-    Printf.printf "make_string_token: (start: %d, current: %d) \n" scanner.start
-      scanner.current
-  in
   if is_at_end scanner then Error.init scanner.line "Unterminated string."
   else
     let next_ch = peek scanner in
@@ -59,36 +55,31 @@ let rec make_string_token scanner =
 
 let scan_token scanner =
   let ch, scanner = advance scanner in
-  let result =
-    match ch with
-    | '(' -> make_token scanner Token.LEFT_PAREN
-    | ')' -> make_token scanner Token.RIGHT_PAREN
-    | '{' -> make_token scanner Token.LEFT_BRACE
-    | '}' -> make_token scanner Token.RIGHT_BRACE
-    | ',' -> make_token scanner Token.COMMA
-    | '.' -> make_token scanner Token.DOT
-    | '-' -> make_token scanner Token.MINUS
-    | '+' -> make_token scanner Token.PLUS
-    | ';' -> make_token scanner Token.SEMICOLON
-    | '*' -> make_token scanner Token.STAR
-    | '!' -> make_prefixed_token scanner '=' Token.BANG Token.BANG_EQUAL
-    | '=' -> make_prefixed_token scanner '=' Token.EQUAL Token.EQUAL_EQUAL
-    | '<' -> make_prefixed_token scanner '=' Token.LESS Token.LESS_EQUAL
-    | '>' -> make_prefixed_token scanner '=' Token.GREATER Token.GREATER_EQUAL
-    | '/' ->
-        let scanner, matched = match_lexeme scanner '/' in
-        if matched then advance_comment scanner
-        else make_token scanner Token.SLASH
-    | ' ' | '\r' | '\t' -> make_token scanner Token.WHITESPACE
-    | '\n' ->
-        let scanner = { scanner with line = scanner.line + 1 } in
-        make_token scanner Token.NEWLINE
-    | '"' -> make_string_token scanner
-    | _ -> Error.init scanner.line "Unexpected character."
-  in
-  Result.map
-    (fun (scanner, token) -> ({ scanner with start = scanner.current }, token))
-    result
+  match ch with
+  | '(' -> make_token scanner Token.LEFT_PAREN
+  | ')' -> make_token scanner Token.RIGHT_PAREN
+  | '{' -> make_token scanner Token.LEFT_BRACE
+  | '}' -> make_token scanner Token.RIGHT_BRACE
+  | ',' -> make_token scanner Token.COMMA
+  | '.' -> make_token scanner Token.DOT
+  | '-' -> make_token scanner Token.MINUS
+  | '+' -> make_token scanner Token.PLUS
+  | ';' -> make_token scanner Token.SEMICOLON
+  | '*' -> make_token scanner Token.STAR
+  | '!' -> make_prefixed_token scanner '=' Token.BANG Token.BANG_EQUAL
+  | '=' -> make_prefixed_token scanner '=' Token.EQUAL Token.EQUAL_EQUAL
+  | '<' -> make_prefixed_token scanner '=' Token.LESS Token.LESS_EQUAL
+  | '>' -> make_prefixed_token scanner '=' Token.GREATER Token.GREATER_EQUAL
+  | '/' ->
+      let scanner, matched = match_lexeme scanner '/' in
+      if matched then advance_comment scanner
+      else make_token scanner Token.SLASH
+  | ' ' | '\r' | '\t' -> make_token scanner Token.WHITESPACE
+  | '\n' ->
+      let scanner = { scanner with line = scanner.line + 1 } in
+      make_token scanner Token.NEWLINE
+  | '"' -> make_string_token scanner
+  | _ -> Error.init scanner.line "Unexpected character."
 
 let is_ignored_token token_type =
   match token_type with
