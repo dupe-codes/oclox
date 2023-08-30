@@ -1,0 +1,3 @@
+(test
+ (name oclox)
+ (libraries ounit2))
