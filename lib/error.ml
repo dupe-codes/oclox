@@ -1,6 +1,6 @@
 let report line where msg =
   let _ =
-    Printf.printf "[line %s] Error %s: %s\n" (string_of_int line) where msg
+    Printf.eprintf "[line %s] Error %s: %s\n%!" (string_of_int line) where msg
   in
   Error msg
 
