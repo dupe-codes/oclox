@@ -1,3 +1,53 @@
-type t = A | B | C
+type token_type =
+  (* Single-character tokens *)
+  | LEFT_PAREN
+  | RIGHT_PAREN
+  | LEFT_BRACE
+  | RIGHT_BRACE
+  | COMMA
+  | DOT
+  | MINUS
+  | PLUS
+  | SEMICOLON
+  | SLASH
+  | STAR
+  (* One or two character tokens *)
+  | BANG
+  | BANG_EQUAL
+  | EQUAL
+  | EQUAL_EQUAL
+  | GREATER
+  | GREATER_EQUAL
+  | LESS
+  | LESS_EQUAL
+  (* Literals *)
+  | IDENTIFIER of string
+  | STRING of string
+  | NUMBER of float
+  (* Keywords *)
+  | AND
+  | CLASS
+  | ELSE
+  | FALSE
+  | FUN
+  | FOR
+  | IF
+  | NIL
+  | OR
+  | PRINT
+  | RETURN
+  | SUPER
+  | THIS
+  | TRUE
+  | VAR
+  | WHILE
+  | EOF
+
+type t = { token_type : token_type; line : int }
+(* NOTE:
+    - All tokens associated with: lexeme + line number
+    - Some tokens also have literal
+    - Literal can be Double or String
+*)
 
 let to_string token = match token with A -> "A" | B -> "B" | C -> "C"
