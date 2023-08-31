@@ -1,4 +1,9 @@
-"this is a fine
+var my_str = "this is a fine
 string with new
 lines
 very good!"
+
+var i = 0
+while (i < 4) {
+    i = i + 1
+}

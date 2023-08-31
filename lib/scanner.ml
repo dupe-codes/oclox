@@ -1,3 +1,5 @@
+(* TODO: Figure out where the pipeline operator |> can be used *)
+
 type t = { source : string; start : int; current : int; line : int }
 
 let init source = { source; start = 0; current = 0; line = 1 }
@@ -24,6 +26,11 @@ let make_prefixed_token scanner next_ch prefix_token full_token =
 
 let peek scanner =
   if is_at_end scanner then '\000' else scanner.source.[scanner.current]
+
+let peek_next scanner =
+  match scanner.current + 1 >= String.length scanner.source with
+  | true -> '\000'
+  | false -> scanner.source.[scanner.current + 1]
 
 let rec advance_comment scanner =
   if is_at_end scanner then make_token scanner Token.COMMENT
@@ -53,6 +60,31 @@ let rec make_string_token scanner =
       let _, scanner = advance scanner in
       make_string_token scanner
 
+let is_digit = function '0' .. '9' -> true | _ -> false
+let is_alpha = function 'a' .. 'z' | 'A' .. 'Z' | '_' -> true | _ -> false
+let is_alphanumeric ch = is_digit ch || is_alpha ch
+
+let rec make_number_token scanner =
+  let peek_ch = peek scanner in
+  if is_digit peek_ch || (peek_ch = '.' && is_digit (peek_next scanner)) then
+    advance scanner |> fun (_, scanner) -> make_number_token scanner
+  else
+    let value =
+      String.sub scanner.source scanner.start (scanner.current - scanner.start)
+    in
+    make_token scanner (Token.NUMBER (float_of_string value))
+
+let rec make_identifier_token scanner =
+  if is_alphanumeric (peek scanner) then
+    advance scanner |> fun (_, scanner) -> make_identifier_token scanner
+  else
+    let value =
+      String.sub scanner.source scanner.start (scanner.current - scanner.start)
+    in
+    make_token scanner (Token.get_identifier_type value)
+
+(* NOTE: Maybe return an option Token.t to handle skipped tokens, rather than
+   returning Token.WHITESPACE and the like *)
 let scan_token scanner =
   let ch, scanner = advance scanner in
   match ch with
@@ -79,7 +111,10 @@ let scan_token scanner =
       let scanner = { scanner with line = scanner.line + 1 } in
       make_token scanner Token.NEWLINE
   | '"' -> make_string_token scanner
-  | _ -> Error.init scanner.line "Unexpected character."
+  | ch ->
+      if is_digit ch then make_number_token scanner
+      else if is_alpha ch then make_identifier_token scanner
+      else Error.init scanner.line "Unexpected character."
 
 let is_ignored_token token_type =
   match token_type with
