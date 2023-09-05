@@ -10,7 +10,7 @@ let advance scanner =
   (ch, { scanner with current = scanner.current + 1 })
 
 let make_token scanner token_type =
-  let token : Token.t = { token_type; line = scanner.line } in
+  let token = Token.init token_type scanner.line in
   Ok ({ scanner with start = scanner.current }, token)
 
 let match_lexeme scanner ch =

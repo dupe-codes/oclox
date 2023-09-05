@@ -33,11 +33,22 @@ let run_file file_name =
   let file_contents = Stdio.In_channel.read_all file_name in
   if not (run file_contents) then exit 65
 
+(*let _ =*)
+(*let args_length = Array.length Sys.argv in*)
+(*let errored_invocation = if args_length > 2 then true else false in*)
+(*if errored_invocation then*)
+(*let _ = Printf.printf "Usage: oclox [script]" in*)
+(*exit 64*)
+(*else if Array.length Sys.argv = 2 then run_file Sys.argv.(1)*)
+(*else run_prompt ()*)
+
 let _ =
-  let args_length = Array.length Sys.argv in
-  let errored_invocation = if args_length > 2 then true else false in
-  if errored_invocation then
-    let _ = Printf.printf "Usage: oclox [script]" in
-    exit 64
-  else if Array.length Sys.argv = 2 then run_file Sys.argv.(1)
-  else run_prompt ()
+  let open Oclox in
+  let expr =
+    Expression.Binary
+      ( Expression.Unary
+          (Token.init Token.MINUS 1, Expression.Literal (Some (Float 123.0))),
+        Token.init Token.STAR 1,
+        Expression.Grouping (Expression.Literal (Some (Float 45.67))) )
+  in
+  Printf.printf "%s\n" (Ast_printer.print expr)
