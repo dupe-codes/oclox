@@ -37,7 +37,7 @@ let _ =
   let args_length = Array.length Sys.argv in
   let errored_invocation = if args_length > 2 then true else false in
   if errored_invocation then
-    let _ = Printf.printf "Usage: clox [script]" in
+    let _ = Printf.printf "Usage: oclox [script]" in
     exit 64
   else if Array.length Sys.argv = 2 then run_file Sys.argv.(1)
   else run_prompt ()

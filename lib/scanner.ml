@@ -28,9 +28,8 @@ let peek scanner =
   if is_at_end scanner then '\000' else scanner.source.[scanner.current]
 
 let peek_next scanner =
-  match scanner.current + 1 >= String.length scanner.source with
-  | true -> '\000'
-  | false -> scanner.source.[scanner.current + 1]
+  if scanner.current + 1 >= String.length scanner.source then '\000'
+  else scanner.source.[scanner.current + 1]
 
 let rec advance_comment scanner =
   if is_at_end scanner then make_token scanner Token.COMMENT
