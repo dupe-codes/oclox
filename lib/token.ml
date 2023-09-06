@@ -56,6 +56,51 @@ type t = { token_type : token_type; line : int }
 
 let init token_type line = { token_type; line }
 
+let type_to_string t_type =
+  match t_type with
+  | LEFT_PAREN -> "LEFT_PAREN"
+  | RIGHT_PAREN -> "RIGHT_PAREN"
+  | LEFT_BRACE -> "LEFT_BRACE"
+  | RIGHT_BRACE -> "RIGHT_BRACE"
+  | COMMA -> "COMMA"
+  | DOT -> "DOT"
+  | MINUS -> "MINUS"
+  | PLUS -> "PLUS"
+  | SEMICOLON -> "SEMICOLON"
+  | SLASH -> "SLASH"
+  | STAR -> "STAR"
+  | BANG -> "BANG"
+  | BANG_EQUAL -> "BANG_EQUAL"
+  | EQUAL -> "EQUAL"
+  | EQUAL_EQUAL -> "EQUAL_EQUAL"
+  | GREATER -> "GREATER"
+  | GREATER_EQUAL -> "GREATER_EQUAL"
+  | LESS -> "LESS"
+  | LESS_EQUAL -> "LESS_EQUAL"
+  | IDENTIFIER _ -> "IDENTIFIER"
+  | STRING _ -> "STRING"
+  | NUMBER _ -> "NUMBER"
+  | AND -> "AND"
+  | CLASS -> "CLASS"
+  | ELSE -> "ELSE"
+  | FALSE -> "FALSE"
+  | FUN -> "FUN"
+  | FOR -> "FOR"
+  | IF -> "IF"
+  | NIL -> "NIL"
+  | OR -> "OR"
+  | PRINT -> "PRINT"
+  | RETURN -> "RETURN"
+  | SUPER -> "SUPER"
+  | THIS -> "THIS"
+  | TRUE -> "TRUE"
+  | VAR -> "VAR"
+  | WHILE -> "WHILE"
+  | COMMENT -> "COMMENT"
+  | WHITESPACE -> "WHITESPACE"
+  | NEWLINE -> "NEWLINE"
+  | EOF -> "EOF"
+
 let get_lexeme token =
   match token.token_type with
   | LEFT_PAREN -> "("
@@ -101,30 +146,14 @@ let get_lexeme token =
   | EOF -> "EOF"
 
 let to_string token =
+  let type_str = type_to_string token.token_type in
   let lexeme = get_lexeme token in
   match token.token_type with
-  | LEFT_PAREN -> "LEFT_PAREN " ^ lexeme
-  | RIGHT_PAREN -> "RIGHT_PAREN " ^ lexeme
-  | LEFT_BRACE -> "LEFT_BRACE " ^ lexeme
-  | RIGHT_BRACE -> "RIGHT_BRACE " ^ lexeme
-  | COMMA -> "COMMA " ^ lexeme
-  | DOT -> "DOT " ^ lexeme
-  | MINUS -> "MINUS " ^ lexeme
-  | PLUS -> "PLUS " ^ lexeme
-  | SEMICOLON -> "SEMICOLON " ^ lexeme
-  | SLASH -> "SLASH " ^ lexeme
-  | STAR -> "STAR " ^ lexeme
-  | BANG -> "BANG " ^ lexeme
-  | BANG_EQUAL -> "BANG_EQUAL " ^ lexeme
-  | EQUAL -> "EQUAL " ^ lexeme
-  | EQUAL_EQUAL -> "EQUAL_EQUAL " ^ lexeme
-  | GREATER -> "GREATER " ^ lexeme
-  | GREATER_EQUAL -> "GREATER_EQUAL " ^ lexeme
-  | LESS -> "LESS " ^ lexeme
-  | LESS_EQUAL -> "LESS_EQUAL " ^ lexeme
-  | IDENTIFIER _ -> "IDENTIFIER " ^ lexeme
-  | STRING _ -> "STRING " ^ lexeme
-  | NUMBER _ -> "NUMBER " ^ lexeme
+  | LEFT_PAREN | RIGHT_PAREN | LEFT_BRACE | RIGHT_BRACE | COMMA | DOT | MINUS
+  | PLUS | SEMICOLON | SLASH | STAR | BANG | BANG_EQUAL | EQUAL | EQUAL_EQUAL
+  | GREATER | GREATER_EQUAL | LESS | LESS_EQUAL | IDENTIFIER _ | STRING _
+  | NUMBER _ ->
+      type_str ^ " " ^ lexeme
   | _ -> String.uppercase_ascii lexeme
 
 let get_identifier_type = function

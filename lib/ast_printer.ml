@@ -2,6 +2,7 @@ let print_literal literal =
   match literal with
   | Some (Value.String s) -> s
   | Some (Value.Float f) -> string_of_float f
+  | Some (Value.Bool bool) -> string_of_bool bool
   | None -> "nil"
 
 let rec parenthesize lexeme exprs =
