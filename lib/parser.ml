@@ -44,7 +44,7 @@ let consume expected_type parser =
 let create_literal constructor value =
   Expression.Literal (Some (constructor value))
 
-let rec parse_grouping parser =
+let rec grouping parser =
   let expr, parser = expression parser in
   let _, parser =
     consume_with_msg Token.RIGHT_PAREN parser "Expect ')' after expression."
@@ -71,7 +71,7 @@ and primary parser =
       (create_literal (fun s -> String s) s, parser)
   | Token.LEFT_PAREN ->
       let _, parser = consume Token.LEFT_PAREN parser in
-      parse_grouping parser
+      grouping parser
   | _ -> raise (parse_error next_token "Expected expression")
 
 and unary parser =
