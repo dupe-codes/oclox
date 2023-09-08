@@ -1,24 +1,18 @@
-(*NOTE:
-  - Error handling with immutable state will be tough. Punt on it
-    until error cases arise, and think about how to deal with it
-    then. Maybe have "error" fields in the scanner and parser
-    types that are set to None when no error has occurred, and
-    Some error when an error has occurred.
-*)
+(* Main REPL and source file executor for the Lox Programming Language *)
 
 let run source =
   let open Oclox in
-  let scanner = Scanner.init source in
-  let scan_result = Scanner.scan_tokens scanner in
-  match scan_result with
-  | Ok tokens -> (
-      let parser = Parser.init tokens in
-      match Parser.parse parser with
-      | Some expr ->
-          let _ = Printf.printf "%s\n" (Ast_printer.print expr) in
-          true
-      | None -> false)
-  | Error _ -> false
+  Scanner.init source |> Scanner.scan_tokens
+  |> Result.fold
+       ~ok:(fun tokens ->
+         let parser = Parser.init tokens in
+         match Parser.parse parser with
+         | Some expr ->
+             let _ = Printf.printf "%s\n" (Ast_printer.print expr) in
+             let _ = Interpreter.interpret expr in
+             true
+         | None -> false)
+       ~error:(fun _ -> false)
 
 let rec run_prompt () =
   let _ = Printf.printf "> %!" in

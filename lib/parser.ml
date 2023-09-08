@@ -9,6 +9,29 @@ let is_at_end parser =
   let peek_token = peek parser in
   peek_token.token_type = Token.EOF
 
+let advance parser =
+  let next_token = peek parser in
+  ( next_token,
+    if not (is_at_end parser) then { tokens = List.tl parser.tokens }
+    else parser )
+
+let synchronize parser =
+  (* advance passed token that caused the parsing error *)
+  let token, parser = advance parser in
+  let rec loop (previous : Token.t) parser =
+    if is_at_end parser || previous.token_type = Token.SEMICOLON then parser
+    else
+      let next_token = peek parser in
+      match next_token.token_type with
+      | Token.CLASS | Token.FUN | Token.VAR | Token.FOR | Token.IF | Token.WHILE
+      | Token.PRINT | Token.RETURN ->
+          parser
+      | _ ->
+          let token, parser = advance parser in
+          loop token parser
+  in
+  loop token parser
+
 let match_token parser targets =
   if is_at_end parser then (None, parser)
   else
@@ -105,5 +128,7 @@ and equality parser =
 and expression parser = equality parser
 
 let parse parser =
-  let expr, _ = expression parser in
-  Some expr
+  try
+    let expr, _ = expression parser in
+    Some expr
+  with ParseError -> None
