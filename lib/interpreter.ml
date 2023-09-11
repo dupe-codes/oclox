@@ -82,19 +82,18 @@ let rec evaluate expr =
       let right_val = evaluate right in
       apply_binary left_val right_val op
 
-let interpret expr =
+let execute statement =
+  match statement with
+  | Statement.Expression expr ->
+      let _ = evaluate expr in
+      None
+  | Statement.Print expr ->
+      let value = evaluate expr in
+      let _ = Printf.printf "%s\n%!" (Value.to_string value) in
+      None
+
+let interpret statements =
   try
-    match evaluate expr with
-    | Some (Value.Float x) ->
-        let _ = Printf.printf "%s\n%!" (string_of_float x) in
-        Ok ()
-    | Some (Value.Bool b) ->
-        let _ = Printf.printf "%s\n%!" (string_of_bool b) in
-        Ok ()
-    | Some (Value.String s) ->
-        let _ = Printf.printf "%s\n%!" s in
-        Ok ()
-    | None ->
-        let _ = Printf.printf "nil\n%!" in
-        Ok ()
+    let _ = List.map execute statements in
+    Ok ()
   with RuntimeError (token, message) -> Error.init_runtime token message

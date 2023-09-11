@@ -3,3 +3,4 @@ type t =
   | Grouping of t
   | Literal of Value.t option
   | Unary of Token.t * t
+  | Variable of Token.t

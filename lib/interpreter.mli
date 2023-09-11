@@ -1,1 +1,1 @@
-val interpret : Expression.t -> (unit, Error.error_type) result
+val interpret : Statement.t list -> (unit, Error.error_type) result

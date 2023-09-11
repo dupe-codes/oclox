@@ -95,6 +95,9 @@ and primary parser =
   | Token.LEFT_PAREN ->
       let _, parser = consume Token.LEFT_PAREN parser in
       grouping parser
+  | Token.IDENTIFIER n ->
+      let _, parser = consume (Token.IDENTIFIER n) parser in
+      (Expression.Variable next_token, parser)
   | _ -> raise (parse_error next_token "Expected expression")
 
 and unary parser =
@@ -127,8 +130,70 @@ and equality parser =
 
 and expression parser = equality parser
 
-let parse parser =
+let print_statement parser =
+  let expr, parser = expression parser in
+  let _, parser =
+    consume_with_msg Token.SEMICOLON parser "Expect ';' after value."
+  in
+  (Statement.Print expr, parser)
+
+let expression_statement parser =
+  let expr, parser = expression parser in
+  let _, parser =
+    consume_with_msg Token.SEMICOLON parser "Expect ';' after expression."
+  in
+  (Statement.Expression expr, parser)
+
+let statement parser =
+  let maybe_token, parser = match_token parser [ Token.PRINT ] in
+  match maybe_token with
+  | Some _ -> print_statement parser
+  | None -> expression_statement parser
+
+let consume_identifier parser =
+  let next_token = peek parser in
+  match next_token.token_type with
+  | Token.IDENTIFIER _ ->
+      (List.hd parser.tokens, { tokens = List.tl parser.tokens })
+  | _ -> raise (parse_error next_token "Expect variable name")
+
+let var_declaration parser =
+  let name_token, parser = consume_identifier parser in
+  let maybe_initializer, parser = match_token parser [ Token.EQUAL ] in
+  let initializer_expr, parser =
+    match maybe_initializer with
+    | Some _ ->
+        let expr, parser = expression parser in
+        (Some expr, parser)
+    | None -> (None, parser)
+  in
+  let _, parser =
+    consume_with_msg Token.SEMICOLON parser
+      "Expect ';' after variable declaration."
+  in
+  (Statement.Var (name_token, initializer_expr), parser)
+
+let declaration parser =
   try
-    let expr, _ = expression parser in
-    Some expr
-  with ParseError -> None
+    let maybe_token, parser = match_token parser [ Token.VAR ] in
+    match maybe_token with
+    | Some _ ->
+        let stmt, parser = var_declaration parser in
+        (Some stmt, parser)
+    | None ->
+        let stmt, parser = statement parser in
+        (Some stmt, parser)
+  with ParseError ->
+    let parser = synchronize parser in
+    (None, parser)
+
+let parse parser =
+  let rec loop parser statements errored =
+    if is_at_end parser then if not errored then Some statements else None
+    else
+      let statement, parser = declaration parser in
+      match statement with
+      | Some stmt -> loop parser (stmt :: statements) (errored || false)
+      | None -> loop parser statements true
+  in
+  loop parser [] false

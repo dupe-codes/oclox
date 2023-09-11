@@ -6,9 +6,7 @@ let run source =
   Result.bind token_result (fun tokens ->
       let parser = Parser.init tokens in
       match Parser.parse parser with
-      | Some expr ->
-          let _ = Printf.printf "%s\n" (Ast_printer.print expr) in
-          Interpreter.interpret expr
+      | Some statements -> Interpreter.interpret statements
       | None -> Error.init 0 "Parsing failure")
 
 let rec run_prompt () =
