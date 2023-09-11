@@ -2,17 +2,14 @@
 
 let run source =
   let open Oclox in
-  Scanner.init source |> Scanner.scan_tokens
-  |> Result.fold
-       ~ok:(fun tokens ->
-         let parser = Parser.init tokens in
-         match Parser.parse parser with
-         | Some expr ->
-             let _ = Printf.printf "%s\n" (Ast_printer.print expr) in
-             let _ = Interpreter.interpret expr in
-             true
-         | None -> false)
-       ~error:(fun _ -> false)
+  Scanner.init source |> Scanner.scan_tokens |> fun token_result ->
+  Result.bind token_result (fun tokens ->
+      let parser = Parser.init tokens in
+      match Parser.parse parser with
+      | Some expr ->
+          let _ = Printf.printf "%s\n" (Ast_printer.print expr) in
+          Interpreter.interpret expr
+      | None -> Error.init 0 "Parsing failure")
 
 let rec run_prompt () =
   let _ = Printf.printf "> %!" in
@@ -24,8 +21,14 @@ let rec run_prompt () =
       run_prompt ()
 
 let run_file file_name =
+  let open Oclox in
   let file_contents = Stdio.In_channel.read_all file_name in
-  if not (run file_contents) then exit 65
+  Result.iter_error
+    (fun error_type ->
+      match error_type with
+      | Error.Syntax_error -> exit 65
+      | Error.Runtime_error -> exit 70)
+    (run file_contents)
 
 let _ =
   let args_length = Array.length Sys.argv in
