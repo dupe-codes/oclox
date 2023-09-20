@@ -1,5 +1,3 @@
-exception RuntimeError of Token.t * string
-
 let apply_bang value =
   match value with
   | Some (Value.Bool x) -> Some (Value.Bool (not x))
@@ -9,24 +7,25 @@ let apply_bang value =
 let apply_unary (token : Token.t) value =
   match (token.token_type, value) with
   | Token.MINUS, Some (Value.Float x) -> Some (Value.Float (-1. *. x))
-  | Token.MINUS, _ -> raise (RuntimeError (token, "Operand must be a number"))
+  | Token.MINUS, _ ->
+      raise (Lox_error.Runtime (token, "Operand must be a number"))
   | Token.BANG, v -> apply_bang v
   | _ -> failwith "Unimplemented unary operator"
 
 let apply_minus op l r =
   match (l, r) with
   | Some (Value.Float l), Some (Value.Float r) -> Some (Value.Float (l -. r))
-  | _ -> raise (RuntimeError (op, "Operands must be numbers"))
+  | _ -> raise (Lox_error.Runtime (op, "Operands must be numbers"))
 
 let apply_slash op l r =
   match (l, r) with
   | Some (Value.Float l), Some (Value.Float r) -> Some (Value.Float (l /. r))
-  | _ -> raise (RuntimeError (op, "Operands must be numbers"))
+  | _ -> raise (Lox_error.Runtime (op, "Operands must be numbers"))
 
 let apply_star op l r =
   match (l, r) with
   | Some (Value.Float l), Some (Value.Float r) -> Some (Value.Float (l *. r))
-  | _ -> raise (RuntimeError (op, "Operands must be numbers"))
+  | _ -> raise (Lox_error.Runtime (op, "Operands must be numbers"))
 
 let apply_plus op l r =
   match (l, r) with
@@ -34,27 +33,28 @@ let apply_plus op l r =
   | Some (Value.String l), Some (Value.String r) -> Some (Value.String (l ^ r))
   | _ ->
       raise
-        (RuntimeError (op, "Operands must be either two numbers or two strings"))
+        (Lox_error.Runtime
+           (op, "Operands must be either two numbers or two strings"))
 
 let apply_greater op l r =
   match (l, r) with
   | Some (Value.Float l), Some (Value.Float r) -> Some (Value.Bool (l > r))
-  | _ -> raise (RuntimeError (op, "Operands must be numbers"))
+  | _ -> raise (Lox_error.Runtime (op, "Operands must be numbers"))
 
 let apply_greater_equal op l r =
   match (l, r) with
   | Some (Value.Float l), Some (Value.Float r) -> Some (Value.Bool (l >= r))
-  | _ -> raise (RuntimeError (op, "Operands must be numbers"))
+  | _ -> raise (Lox_error.Runtime (op, "Operands must be numbers"))
 
 let apply_less op l r =
   match (l, r) with
   | Some (Value.Float l), Some (Value.Float r) -> Some (Value.Bool (l < r))
-  | _ -> raise (RuntimeError (op, "Operands must be numbers"))
+  | _ -> raise (Lox_error.Runtime (op, "Operands must be numbers"))
 
 let apply_less_equal op l r =
   match (l, r) with
   | Some (Value.Float l), Some (Value.Float r) -> Some (Value.Bool (l <= r))
-  | _ -> raise (RuntimeError (op, "Operands must be numbers"))
+  | _ -> raise (Lox_error.Runtime (op, "Operands must be numbers"))
 
 let apply_binary left right (op : Token.t) =
   match (op.token_type, left, right) with
@@ -70,30 +70,56 @@ let apply_binary left right (op : Token.t) =
   | Token.EQUAL_EQUAL, l, r -> Some (Value.Bool (l = r))
   | _ -> failwith "unimplemented"
 
-let rec evaluate expr =
+let rec evaluate env expr =
   match expr with
   | Expression.Literal value -> value
-  | Grouping expr -> evaluate expr
+  | Grouping expr -> evaluate env expr
   | Unary (token, expr) ->
-      let right = evaluate expr in
+      let right = evaluate env expr in
       apply_unary token right
   | Binary (left, op, right) ->
-      let left_val = evaluate left in
-      let right_val = evaluate right in
+      let left_val = evaluate env left in
+      let right_val = evaluate env right in
       apply_binary left_val right_val op
+  | Variable { token_type = Token.IDENTIFIER name; line } ->
+      let result = Environment.get env name in
+      Result.fold ~ok:Fun.id
+        ~error:(fun err ->
+          raise
+            (Lox_error.Runtime
+               ({ token_type = Token.IDENTIFIER name; line }, err)))
+        result
+  | Variable token ->
+      (* This case should be impossible - parsing will never make a Variable token
+         not holding an identifier *)
+      raise
+        (Lox_error.Runtime
+           (token, "Invalid variable access, expected identifier."))
 
-let execute statement =
+let execute env statement =
   match statement with
   | Statement.Expression expr ->
-      let _ = evaluate expr in
-      None
-  | Statement.Print expr ->
-      let value = evaluate expr in
+      let _ = evaluate env expr in
+      env
+  | Print expr ->
+      let value = evaluate env expr in
       let _ = Printf.printf "%s\n%!" (Value.to_string value) in
-      None
+      env
+  | Var ({ token_type = Token.IDENTIFIER name; line = _ }, expr) ->
+      let value = Option.bind expr (evaluate env) in
+      Environment.define env name value
+  | Var (token, _) ->
+      (* This case should be impossible - use of an invalid, non-identifier token in
+         a variable declaration is detected during parsing *)
+      raise
+        (Lox_error.Runtime
+           (token, "Invalid var declaration, expected identifier."))
 
-let interpret statements =
+let interpret statements env =
   try
-    let _ = List.map execute statements in
-    Ok ()
-  with RuntimeError (token, message) -> Error.init_runtime token message
+    let env =
+      List.fold_left (fun curr_env s -> execute curr_env s) env statements
+    in
+    Ok env
+  with Lox_error.Runtime (token, message) ->
+    Lox_error.init_runtime token message

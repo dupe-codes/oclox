@@ -1,1 +1,4 @@
-val interpret : Statement.t list -> (unit, Error.error_type) result
+val interpret :
+  Statement.t list ->
+  Environment.t ->
+  (Environment.t, Lox_error.error_type) result

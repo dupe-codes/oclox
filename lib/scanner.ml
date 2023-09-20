@@ -41,7 +41,7 @@ let rec advance_comment scanner =
       advance_comment scanner
 
 let rec make_string_token scanner =
-  if is_at_end scanner then Error.init scanner.line "Unterminated string."
+  if is_at_end scanner then Lox_error.init scanner.line "Unterminated string."
   else
     let next_ch = peek scanner in
     if next_ch = '"' then
@@ -113,7 +113,7 @@ let scan_token scanner =
   | ch ->
       if is_digit ch then make_number_token scanner
       else if is_alpha ch then make_identifier_token scanner
-      else Error.init scanner.line "Unexpected character."
+      else Lox_error.init scanner.line "Unexpected character."
 
 let is_ignored_token token_type =
   match token_type with

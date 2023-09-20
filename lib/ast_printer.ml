@@ -15,3 +15,4 @@ and print ast =
   | Expression.Grouping expr -> parenthesize "group" [ expr ]
   | Expression.Literal literal -> print_literal literal
   | Expression.Unary (op, r) -> parenthesize (Token.get_lexeme op) [ r ]
+  | Expression.Variable name -> failwith "TODO"

@@ -51,7 +51,7 @@ let rec match_loop parser expr targets right_fn =
   | None -> (expr, parser)
 
 let parse_error (token : Token.t) msg =
-  let _ = Error.init_for_token token msg in
+  let _ = Lox_error.init_for_token token msg in
   raise ParseError
 
 let consume_with_msg expected_token parser err_msg =
@@ -166,6 +166,7 @@ let var_declaration parser =
         let expr, parser = expression parser in
         (Some expr, parser)
     | None -> (None, parser)
+    (* TODO: Maybe use null literal as initializer expr here instead of option type*)
   in
   let _, parser =
     consume_with_msg Token.SEMICOLON parser

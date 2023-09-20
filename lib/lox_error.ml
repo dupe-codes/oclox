@@ -1,5 +1,7 @@
 type error_type = Syntax_error | Runtime_error
 
+exception Runtime of Token.t * string
+
 let report line where msg =
   let _ =
     Printf.eprintf "[line %s] Error %s: %s\n%!" (string_of_int line) where msg

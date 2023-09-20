@@ -1,6 +1,7 @@
 (library
   (public_name oclox)
-  (name oclox))
+  (name oclox)
+  (libraries base))
 
 (env
  (dev
