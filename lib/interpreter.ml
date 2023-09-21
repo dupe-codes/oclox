@@ -113,7 +113,14 @@ let rec evaluate env expr =
         (Lox_error.Runtime
            (token, "Invalid variable assignment, expected identifier."))
 
-let execute env statement =
+let rec execute_block env statements =
+  let block_scope = Environment.with_enclosing env in
+  let _ =
+    List.fold_left (fun curr_env s -> execute curr_env s) block_scope statements
+  in
+  env
+
+and execute env statement =
   match statement with
   | Statement.Expression expr ->
       let env, _ = evaluate env expr in
@@ -122,6 +129,7 @@ let execute env statement =
       let env, value = evaluate env expr in
       let _ = Printf.printf "%s\n%!" (Value.to_string value) in
       env
+  | Block statements -> execute_block env statements
   | Var ({ token_type = Token.IDENTIFIER name; line = _ }, expr) ->
       let env, value =
         Option.fold ~none:(env, None) ~some:(evaluate env) expr

@@ -155,12 +155,6 @@ let expression_statement parser =
   in
   (Statement.Expression expr, parser)
 
-let statement parser =
-  let maybe_token, parser = match_token parser [ Token.PRINT ] in
-  match maybe_token with
-  | Some _ -> print_statement parser
-  | None -> expression_statement parser
-
 let consume_identifier parser =
   let next_token = peek parser in
   match next_token.token_type with
@@ -185,23 +179,54 @@ let var_declaration parser =
   in
   (Statement.Var (name_token, initializer_expr), parser)
 
-let declaration parser =
+let rec declaration parser =
   try
     let maybe_token, parser = match_token parser [ Token.VAR ] in
     match maybe_token with
     | Some _ ->
         let stmt, parser = var_declaration parser in
         (Some stmt, parser)
-    | None ->
-        let stmt, parser = statement parser in
-        (Some stmt, parser)
+    | None -> statement parser
   with ParseError ->
     let parser = synchronize parser in
     (None, parser)
 
+and block parser =
+  let rec loop stmts parser =
+    if is_at_end parser then (List.rev stmts, parser)
+    else if (peek parser).token_type = Token.RIGHT_BRACE then
+      consume Token.RIGHT_BRACE parser |> fun (_, parser) ->
+      (List.rev stmts, parser)
+    else
+      let stmt, parser = declaration parser in
+      loop (stmt :: stmts) parser
+  in
+  loop [] parser
+
+and statement parser =
+  let maybe_token, parser =
+    match_token parser [ Token.PRINT; Token.LEFT_BRACE ]
+  in
+  match maybe_token with
+  | Some { token_type = Token.PRINT; _ } ->
+      let stmt, parser = print_statement parser in
+      (Some stmt, parser)
+  | Some { token_type = Token.LEFT_BRACE; _ } ->
+      let statements, parser = block parser in
+      if List.exists Option.is_none statements then (None, parser)
+      else
+        ( Some
+            (Statement.Block
+               (List.filter Option.is_some statements |> List.map Option.get)),
+          parser )
+  | Some _ | None ->
+      let stmt, parser = expression_statement parser in
+      (Some stmt, parser)
+
 let parse parser =
   let rec loop parser statements errored =
-    if is_at_end parser then if not errored then Some statements else None
+    if is_at_end parser then
+      if not errored then Some (List.rev statements) else None
     else
       let statement, parser = declaration parser in
       match statement with

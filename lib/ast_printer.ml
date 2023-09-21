@@ -19,13 +19,14 @@ and print_expr ast =
   | Assign (token, expr) ->
       parenthesize ("Assign " ^ Token.to_string token) [ expr ]
 
-let print_statement = function
+let rec print_statement = function
   | Statement.Expression expr -> print_expr expr
   | Print expr -> Printf.sprintf "(print %s)" (print_expr expr)
   | Var (token, expr) ->
       Printf.sprintf "(var %s %s)" (Token.to_string token)
         (Option.fold ~none:"nil" ~some:print_expr expr)
+  | Block stmts -> Printf.sprintf "(block %s)" (print_statements stmts)
 
-let print_statements statements =
+and print_statements statements =
   let statement_strs = List.map print_statement statements in
   String.concat "\n" statement_strs

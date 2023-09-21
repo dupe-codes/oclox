@@ -7,9 +7,9 @@ let run source env =
       let parser = Parser.init tokens in
       match Parser.parse parser with
       | Some statements ->
-          let _ =
-            Printf.printf "%s\n%!" (Ast_printer.print_statements statements)
-          in
+          (*let _ =*)
+          (*Printf.printf "%s\n%!" (Ast_printer.print_statements statements)*)
+          (*in*)
           Interpreter.interpret statements env
       | None -> Lox_error.init 0 "Parsing failure")
 
