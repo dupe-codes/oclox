@@ -72,45 +72,65 @@ let apply_binary left right (op : Token.t) =
 
 let rec evaluate env expr =
   match expr with
-  | Expression.Literal value -> value
+  | Expression.Literal value -> (env, value)
   | Grouping expr -> evaluate env expr
   | Unary (token, expr) ->
-      let right = evaluate env expr in
-      apply_unary token right
+      let env, right = evaluate env expr in
+      (env, apply_unary token right)
   | Binary (left, op, right) ->
-      let left_val = evaluate env left in
-      let right_val = evaluate env right in
-      apply_binary left_val right_val op
+      let env, left_val = evaluate env left in
+      let env, right_val = evaluate env right in
+      (env, apply_binary left_val right_val op)
   | Variable { token_type = Token.IDENTIFIER name; line } ->
       let result = Environment.get env name in
-      Result.fold ~ok:Fun.id
+      Result.fold
+        ~ok:(fun value -> (env, value))
+        ~error:(fun err ->
+          raise
+            (Lox_error.Runtime
+               ({ token_type = Token.IDENTIFIER name; line }, err)))
+        result
+  | Assign ({ token_type = Token.IDENTIFIER name; line }, expr) ->
+      let env, value = evaluate env expr in
+      let result = Environment.assign env name value in
+      Result.fold
+        ~ok:(fun env -> (env, value))
         ~error:(fun err ->
           raise
             (Lox_error.Runtime
                ({ token_type = Token.IDENTIFIER name; line }, err)))
         result
   | Variable token ->
-      (* This case should be impossible - parsing will never make a Variable token
-         not holding an identifier *)
+      (* This case should be impossible - parsing will never make a
+         Variable token not holding an identifier *)
       raise
         (Lox_error.Runtime
            (token, "Invalid variable access, expected identifier."))
+  | Assign (token, _) ->
+      (* This case should be impossible - parsing will never make a
+         Variable token not holding an identifier *)
+      raise
+        (Lox_error.Runtime
+           (token, "Invalid variable assignment, expected identifier."))
 
 let execute env statement =
   match statement with
   | Statement.Expression expr ->
-      let _ = evaluate env expr in
+      let env, _ = evaluate env expr in
       env
   | Print expr ->
-      let value = evaluate env expr in
+      let env, value = evaluate env expr in
       let _ = Printf.printf "%s\n%!" (Value.to_string value) in
       env
   | Var ({ token_type = Token.IDENTIFIER name; line = _ }, expr) ->
-      let value = Option.bind expr (evaluate env) in
+      let env, value =
+        Option.fold ~none:(env, None) ~some:(evaluate env) expr
+      in
       Environment.define env name value
   | Var (token, _) ->
-      (* This case should be impossible - use of an invalid, non-identifier token in
-         a variable declaration is detected during parsing *)
+      (* This case should be impossible - use of an invalid, non-identifier
+         token in a variable declaration is detected as an error during
+         parsing *)
       raise
         (Lox_error.Runtime
            (token, "Invalid var declaration, expected identifier."))

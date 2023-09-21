@@ -6,7 +6,11 @@ let run source env =
   Result.bind token_result (fun tokens ->
       let parser = Parser.init tokens in
       match Parser.parse parser with
-      | Some statements -> Interpreter.interpret statements env
+      | Some statements ->
+          let _ =
+            Printf.printf "%s\n%!" (Ast_printer.print_statements statements)
+          in
+          Interpreter.interpret statements env
       | None -> Lox_error.init 0 "Parsing failure")
 
 let rec run_prompt env =

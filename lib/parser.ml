@@ -128,7 +128,18 @@ and equality parser =
   let expr, parser = comparison parser in
   match_loop parser expr [ Token.BANG_EQUAL; Token.EQUAL_EQUAL ] comparison
 
-and expression parser = equality parser
+and assignment parser =
+  let expr, parser = equality parser in
+  let maybe_token, parser = match_token parser [ Token.EQUAL ] in
+  match maybe_token with
+  | None -> (expr, parser)
+  | Some equals -> (
+      let value, parser = assignment parser in
+      match expr with
+      | Expression.Variable name -> (Expression.Assign (name, value), parser)
+      | _ -> raise (parse_error equals "Invalid assignment target"))
+
+and expression parser = assignment parser
 
 let print_statement parser =
   let expr, parser = expression parser in

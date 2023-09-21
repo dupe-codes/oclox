@@ -14,6 +14,9 @@ let get env var =
 let define env name value =
   { values = Map.set env.values ~key:name ~data:value }
 
+let assign env name value =
+  Stdlib.Result.map (fun _ -> define env name value) (get env name)
+
 let print env =
   Map.iteri env.values ~f:(fun ~key:name ~data:value ->
       Stdlib.Printf.printf "%s = %s\n%!" name (Value.to_string value))
