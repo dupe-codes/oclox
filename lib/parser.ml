@@ -9,6 +9,12 @@ let is_at_end parser =
   let peek_token = peek parser in
   peek_token.token_type = Token.EOF
 
+let check parser token_type =
+  if is_at_end parser then false
+  else
+    let peek_token = peek parser in
+    peek_token.token_type = token_type
+
 let advance parser =
   let next_token = peek parser in
   ( next_token,
@@ -238,9 +244,63 @@ and while_statement parser =
   if Option.is_none body then (None, parser)
   else (Some (Statement.While (condition, Option.get body)), parser)
 
+and parse_for_initializer (maybe_token : Token.t option) parser =
+  match maybe_token with
+  | Some { token_type = Token.SEMICOLON; _ } -> (None, parser)
+  | Some { token_type = Token.VAR; _ } ->
+      let stmt, parser = var_declaration parser in
+      (Some stmt, parser)
+  | None ->
+      let stmt, parser = expression_statement parser in
+      (Some stmt, parser)
+  | _ -> raise ParseError
+
+and for_statement parser =
+  let _, parser = consume Token.LEFT_PAREN parser in
+  let maybe_token, parser = match_token parser [ Token.SEMICOLON; Token.VAR ] in
+  let init_stmt, parser = parse_for_initializer maybe_token parser in
+  let condition, parser =
+    if not (check parser Token.SEMICOLON) then
+      expression parser |> fun (expr, parser) -> (Some expr, parser)
+    else (None, parser)
+  in
+  let _, parser = consume Token.SEMICOLON parser in
+  let increment, parser =
+    if not (check parser Token.RIGHT_PAREN) then
+      expression parser |> fun (expr, parser) -> (Some expr, parser)
+    else (None, parser)
+  in
+  let _, parser = consume Token.RIGHT_PAREN parser in
+  let body, parser = statement parser in
+  if Option.is_none body then (None, parser)
+  else
+    let body =
+      if Option.is_none increment then Option.get body
+      else
+        Statement.Block
+          [
+            Option.get body;
+            (Option.get increment |> fun incr -> Statement.Expression incr);
+          ]
+    in
+    let body =
+      Some
+        (Statement.While
+           ( Option.fold ~none:(Expression.Literal (Some (Bool true)))
+               ~some:Fun.id condition,
+             body ))
+    in
+    let body =
+      Option.fold ~none:body
+        ~some:(fun init -> Some (Statement.Block [ init; Option.get body ]))
+        init_stmt
+    in
+    (body, parser)
+
 and statement parser =
   let maybe_token, parser =
-    match_token parser [ Token.PRINT; Token.LEFT_BRACE; Token.IF; Token.WHILE ]
+    match_token parser
+      [ Token.PRINT; Token.LEFT_BRACE; Token.IF; Token.WHILE; Token.FOR ]
   in
   match maybe_token with
   | Some { token_type = Token.PRINT; _ } ->
@@ -251,6 +311,9 @@ and statement parser =
       (stmt, parser)
   | Some { token_type = Token.WHILE; _ } ->
       let stmt, parser = while_statement parser in
+      (stmt, parser)
+  | Some { token_type = Token.FOR; _ } ->
+      let stmt, parser = for_statement parser in
       (stmt, parser)
   | Some { token_type = Token.LEFT_BRACE; _ } ->
       let statements, parser = block parser in
