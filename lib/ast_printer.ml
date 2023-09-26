@@ -11,13 +11,16 @@ let rec parenthesize lexeme exprs =
 
 and print_expr ast =
   match ast with
-  | Expression.Binary (l, op, r) -> parenthesize (Token.get_lexeme op) [ l; r ]
+  | Expression.Binary (l, op, r) ->
+      parenthesize ("Binary: " ^ Token.get_lexeme op) [ l; r ]
   | Grouping expr -> parenthesize "group" [ expr ]
   | Literal literal -> print_literal literal
   | Unary (op, r) -> parenthesize (Token.get_lexeme op) [ r ]
   | Variable name -> Token.to_string name
   | Assign (token, expr) ->
       parenthesize ("Assign " ^ Token.to_string token) [ expr ]
+  | Logical (l, op, r) ->
+      parenthesize ("Logical: " ^ Token.get_lexeme op) [ l; r ]
 
 let rec print_statement = function
   | Statement.Expression expr -> print_expr expr
@@ -26,6 +29,9 @@ let rec print_statement = function
       Printf.sprintf "(if %s %s %s)" (print_expr condition)
         (print_statement then_branch)
         (Option.fold ~none:"nil" ~some:print_statement else_branch)
+  | While (condition, body) ->
+      Printf.sprintf "(while %s %s)" (print_expr condition)
+        (print_statement body)
   | Var (token, expr) ->
       Printf.sprintf "(var %s %s)" (Token.to_string token)
         (Option.fold ~none:"nil" ~some:print_expr expr)

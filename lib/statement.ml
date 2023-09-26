@@ -4,3 +4,4 @@ type t =
   | Print of Expression.t
   | Var of Token.t * Expression.t option
   | If of Expression.t * t * t option
+  | While of Expression.t * t

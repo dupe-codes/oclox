@@ -5,3 +5,4 @@ type t =
   | Unary of Token.t * t
   | Variable of Token.t
   | Assign of Token.t * t
+  | Logical of t * Token.t * t

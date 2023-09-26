@@ -41,12 +41,13 @@ let match_token parser targets =
       (Some head, { tokens = remaining })
     else (None, parser)
 
-let rec match_loop parser expr targets right_fn =
+let rec match_loop ?(expr_fn = fun l op r -> Expression.Binary (l, op, r))
+    parser expr targets right_fn =
   let maybe_token, parser = match_token parser targets in
   match maybe_token with
   | Some operator ->
       let right, parser = right_fn parser in
-      let expr = Expression.Binary (expr, operator, right) in
+      let expr = expr_fn expr operator right in
       match_loop parser expr targets right_fn
   | None -> (expr, parser)
 
@@ -128,8 +129,18 @@ and equality parser =
   let expr, parser = comparison parser in
   match_loop parser expr [ Token.BANG_EQUAL; Token.EQUAL_EQUAL ] comparison
 
-and assignment parser =
+and and_expr parser =
   let expr, parser = equality parser in
+  match_loop parser expr [ Token.AND ] equality ~expr_fn:(fun l op r ->
+      Expression.Logical (l, op, r))
+
+and or_expr parser =
+  let expr, parser = and_expr parser in
+  match_loop parser expr [ Token.OR ] and_expr ~expr_fn:(fun l op r ->
+      Expression.Logical (l, op, r))
+
+and assignment parser =
+  let expr, parser = or_expr parser in
   let maybe_token, parser = match_token parser [ Token.EQUAL ] in
   match maybe_token with
   | None -> (expr, parser)
@@ -219,9 +230,17 @@ and if_statement parser =
     ( Some (Statement.If (condition, Option.get then_branch, else_branch)),
       parser )
 
+and while_statement parser =
+  let _, parser = consume Token.LEFT_PAREN parser in
+  let condition, parser = expression parser in
+  let _, parser = consume Token.RIGHT_PAREN parser in
+  let body, parser = statement parser in
+  if Option.is_none body then (None, parser)
+  else (Some (Statement.While (condition, Option.get body)), parser)
+
 and statement parser =
   let maybe_token, parser =
-    match_token parser [ Token.PRINT; Token.LEFT_BRACE; Token.IF ]
+    match_token parser [ Token.PRINT; Token.LEFT_BRACE; Token.IF; Token.WHILE ]
   in
   match maybe_token with
   | Some { token_type = Token.PRINT; _ } ->
@@ -229,6 +248,9 @@ and statement parser =
       (Some stmt, parser)
   | Some { token_type = Token.IF; _ } ->
       let stmt, parser = if_statement parser in
+      (stmt, parser)
+  | Some { token_type = Token.WHILE; _ } ->
+      let stmt, parser = while_statement parser in
       (stmt, parser)
   | Some { token_type = Token.LEFT_BRACE; _ } ->
       let statements, parser = block parser in

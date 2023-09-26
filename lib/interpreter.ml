@@ -1,3 +1,6 @@
+let is_truthy value =
+  match value with Some (Value.Bool x) -> x | None -> false | _ -> true
+
 let apply_bang value =
   match value with
   | Some (Value.Bool x) -> Some (Value.Bool (not x))
@@ -90,6 +93,14 @@ let rec evaluate env expr =
             (Lox_error.Runtime
                ({ token_type = Token.IDENTIFIER name; line }, err)))
         result
+  | Logical (left, op, right) ->
+      let env, left_result = evaluate env left in
+      let left_truthy = is_truthy left_result in
+      if
+        (op.token_type = Token.OR && left_truthy)
+        || (op.token_type = Token.AND && not left_truthy)
+      then (env, left_result)
+      else evaluate env right
   | Assign ({ token_type = Token.IDENTIFIER name; line }, expr) ->
       let env, value = evaluate env expr in
       let result = Environment.assign env name value in
@@ -115,10 +126,10 @@ let rec evaluate env expr =
 
 let rec execute_block env statements =
   let block_scope = Environment.with_enclosing env in
-  let _ =
+  let env =
     List.fold_left (fun curr_env s -> execute curr_env s) block_scope statements
   in
-  env
+  Option.get (Environment.get_enclosing env)
 
 and evaluate_if env condition then_branch else_branch =
   let env, condition_result = evaluate env condition in
@@ -128,6 +139,13 @@ and evaluate_if env condition then_branch else_branch =
       Option.fold ~none:env ~some:(execute env) else_branch
   | Some _ -> execute env then_branch
   | None -> env
+
+and execute_while env condition body =
+  let rec loop env =
+    let env, condition_result = evaluate env condition in
+    if not (is_truthy condition_result) then env else loop (execute env body)
+  in
+  loop env
 
 and execute env statement =
   match statement with
@@ -141,6 +159,7 @@ and execute env statement =
   | Block statements -> execute_block env statements
   | If (condition, then_branch, else_branch) ->
       evaluate_if env condition then_branch else_branch
+  | While (condition, body) -> execute_while env condition body
   | Var ({ token_type = Token.IDENTIFIER name; line = _ }, expr) ->
       let env, value =
         Option.fold ~none:(env, None) ~some:(evaluate env) expr

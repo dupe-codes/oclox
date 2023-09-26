@@ -6,6 +6,7 @@ type t = { values : Value.t option Map.M(String).t; enclosing : t option }
 
 let init () = { values = Map.empty (module String); enclosing = None }
 let with_enclosing enclosing = { (init ()) with enclosing = Some enclosing }
+let get_enclosing env = env.enclosing
 
 let rec get env var =
   match Map.find env.values var with
@@ -23,6 +24,8 @@ let rec assign env name value =
   | None ->
       if Option.is_some env.enclosing then
         assign (Option.value_exn env.enclosing) name value
+        |> Result.map ~f:(fun enclosing ->
+               { env with enclosing = Some enclosing })
       else Error ("Undefined variable " ^ name)
   | Some _ -> Ok (define env name value)
 
