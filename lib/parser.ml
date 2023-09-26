@@ -203,14 +203,33 @@ and block parser =
   in
   loop [] parser
 
+and if_statement parser =
+  let _, parser = consume Token.LEFT_PAREN parser in
+  let condition, parser = expression parser in
+  let _, parser = consume Token.RIGHT_PAREN parser in
+  let then_branch, parser = statement parser in
+  if Option.is_none then_branch then (None, parser)
+  else
+    let else_branch, parser =
+      match_token parser [ Token.ELSE ] |> fun (maybe_token, parser) ->
+      match maybe_token with
+      | Some _ -> statement parser
+      | None -> (None, parser)
+    in
+    ( Some (Statement.If (condition, Option.get then_branch, else_branch)),
+      parser )
+
 and statement parser =
   let maybe_token, parser =
-    match_token parser [ Token.PRINT; Token.LEFT_BRACE ]
+    match_token parser [ Token.PRINT; Token.LEFT_BRACE; Token.IF ]
   in
   match maybe_token with
   | Some { token_type = Token.PRINT; _ } ->
       let stmt, parser = print_statement parser in
       (Some stmt, parser)
+  | Some { token_type = Token.IF; _ } ->
+      let stmt, parser = if_statement parser in
+      (stmt, parser)
   | Some { token_type = Token.LEFT_BRACE; _ } ->
       let statements, parser = block parser in
       if List.exists Option.is_none statements then (None, parser)

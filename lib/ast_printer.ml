@@ -22,6 +22,10 @@ and print_expr ast =
 let rec print_statement = function
   | Statement.Expression expr -> print_expr expr
   | Print expr -> Printf.sprintf "(print %s)" (print_expr expr)
+  | If (condition, then_branch, else_branch) ->
+      Printf.sprintf "(if %s %s %s)" (print_expr condition)
+        (print_statement then_branch)
+        (Option.fold ~none:"nil" ~some:print_statement else_branch)
   | Var (token, expr) ->
       Printf.sprintf "(var %s %s)" (Token.to_string token)
         (Option.fold ~none:"nil" ~some:print_expr expr)

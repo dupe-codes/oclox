@@ -120,6 +120,15 @@ let rec execute_block env statements =
   in
   env
 
+and evaluate_if env condition then_branch else_branch =
+  let env, condition_result = evaluate env condition in
+  match condition_result with
+  | Some (Value.Bool true) -> execute env then_branch
+  | Some (Value.Bool false) ->
+      Option.fold ~none:env ~some:(execute env) else_branch
+  | Some _ -> execute env then_branch
+  | None -> env
+
 and execute env statement =
   match statement with
   | Statement.Expression expr ->
@@ -130,6 +139,8 @@ and execute env statement =
       let _ = Printf.printf "%s\n%!" (Value.to_string value) in
       env
   | Block statements -> execute_block env statements
+  | If (condition, then_branch, else_branch) ->
+      evaluate_if env condition then_branch else_branch
   | Var ({ token_type = Token.IDENTIFIER name; line = _ }, expr) ->
       let env, value =
         Option.fold ~none:(env, None) ~some:(evaluate env) expr

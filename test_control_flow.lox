@@ -1,0 +1,12 @@
+var x = 2;
+
+if (x == 1) {
+  var y = 2;
+  print x + y;
+} else {
+  print "No shot!";
+}
+
+if (x == 2) {
+  print "yes!";
+}
