@@ -56,6 +56,10 @@ type t = { token_type : token_type; line : int }
 
 let init token_type line = { token_type; line }
 
+let get_identifier_name = function
+  | { token_type = IDENTIFIER s; _ } -> s
+  | _ -> failwith "Not an identifier"
+
 let type_to_string t_type =
   match t_type with
   | LEFT_PAREN -> "LEFT_PAREN"

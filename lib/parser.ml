@@ -233,12 +233,15 @@ let var_declaration parser =
 
 let rec declaration parser =
   try
-    let maybe_token, parser = match_token parser [ Token.VAR ] in
+    let maybe_token, parser = match_token parser [ Token.VAR; Token.FUN ] in
     match maybe_token with
-    | Some _ ->
+    | Some { token_type = Token.VAR; _ } ->
         let stmt, parser = var_declaration parser in
         (Some stmt, parser)
-    | None -> statement parser
+    | Some { token_type = Token.FUN; _ } ->
+        let stmt, parser = fn_declaration "function" parser in
+        (stmt, parser)
+    | Some _ | None -> statement parser
   with ParseError ->
     let parser = synchronize parser in
     (None, parser)
@@ -254,6 +257,34 @@ and block parser =
       loop (stmt :: stmts) parser
   in
   loop [] parser
+
+and fn_declaration kind parser =
+  let name, parser = consume_identifier parser in
+  let _, parser = consume Token.LEFT_PAREN parser in
+  let rec loop parser params =
+    if List.length params >= max_fn_arity then
+      raise (parse_error (peek parser) "Cannot have more than 255 parameters")
+    else
+      let maybe_token, parser = match_token parser [ Token.COMMA ] in
+      match maybe_token with
+      | Some _ ->
+          let param, parser = consume_identifier parser in
+          loop parser (param :: params)
+      | None -> (List.rev params, parser)
+  in
+  let params, parser =
+    if not (check parser Token.RIGHT_PAREN) then
+      let first_param, parser = consume_identifier parser in
+      loop parser [ first_param ]
+    else ([], parser)
+  in
+  let _, parser = consume Token.RIGHT_PAREN parser in
+  let _, parser = consume Token.LEFT_BRACE parser in
+  let body, parser = block parser in
+  if List.exists Option.is_none body then (None, parser)
+  else
+    let body = List.filter Option.is_some body |> List.map Option.get in
+    (Some (Statement.Function { name; params; body }), parser)
 
 and if_statement parser =
   let _, parser = consume Token.LEFT_PAREN parser in

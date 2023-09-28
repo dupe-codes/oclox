@@ -73,14 +73,13 @@ let apply_binary left right (op : Token.t) =
   | Token.EQUAL_EQUAL, l, r -> Some (Value.Bool (l = r))
   | _ -> failwith "unimplemented"
 
-let apply_fn paren (fn_def : Value.function_type) args fn =
-  if List.length args != fn_def.arity then
+let check_arity_mismatch paren args arity =
+  if List.length args != arity then
     raise
       (Lox_error.Runtime
          ( paren,
-           Printf.sprintf "Expected %d arguments but got %d." fn_def.arity
+           Printf.sprintf "Expected %d arguments but got %d." arity
              (List.length args) ))
-  else fn args
 
 let rec evaluate env expr =
   match expr with
@@ -144,18 +143,32 @@ and evaluate_fn_call callee paren args env =
       (env, []) args
   in
   match callee with
-  | Some (Value.Function fn_def) ->
-      (env, apply_fn paren fn_def args (fun _ -> None))
-  | Some (Value.Native (fn_def, fn)) -> (env, apply_fn paren fn_def args fn)
+  | Some (Value.Function fn_def) -> apply_function env paren args fn_def
+  | Some (Value.Native (fn_def, fn)) ->
+      let _ = check_arity_mismatch paren args fn_def.arity in
+      (env, fn args)
   | _ ->
       raise (Lox_error.Runtime (paren, "Can only call functions and classes"))
 
-let rec execute_block env statements =
+and apply_function env paren args fn_def =
+  let _ = check_arity_mismatch paren args fn_def.arity in
+  let fn_declaration = Environment.get_fn env fn_def.name in
+  let args_env = Environment.with_enclosing env in
+  let args_env =
+    List.fold_left
+      (fun env (param, arg) ->
+        Environment.define env (Token.get_identifier_name param) arg)
+      args_env
+      (List.combine fn_declaration.params args)
+  in
+  execute_block args_env fn_declaration.body
+
+and execute_block env statements =
   let block_scope = Environment.with_enclosing env in
   let env =
     List.fold_left (fun curr_env s -> execute curr_env s) block_scope statements
   in
-  Option.get (Environment.get_enclosing env)
+  (Option.get (Environment.get_enclosing env), None)
 
 and evaluate_if env condition then_branch else_branch =
   let env, condition_result = evaluate env condition in
@@ -182,10 +195,11 @@ and execute env statement =
       let env, value = evaluate env expr in
       let _ = Printf.printf "%s\n%!" (Value.to_string value) in
       env
-  | Block statements -> execute_block env statements
+  | Block statements -> fst (execute_block env statements)
   | If (condition, then_branch, else_branch) ->
       evaluate_if env condition then_branch else_branch
   | While (condition, body) -> execute_while env condition body
+  | Function declaration -> Environment.define_fn env declaration
   | Var ({ token_type = Token.IDENTIFIER name; line = _ }, expr) ->
       let env, value =
         Option.fold ~none:(env, None) ~some:(evaluate env) expr

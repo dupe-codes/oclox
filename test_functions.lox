@@ -1,0 +1,7 @@
+fun add(a, b) {
+  var c = a + b;
+  print c;
+}
+
+var result = add(5, 10);
+print result;

@@ -36,6 +36,10 @@ let rec print_statement = function
   | While (condition, body) ->
       Printf.sprintf "(while %s %s)" (print_expr condition)
         (print_statement body)
+  | Function { name; params; body } ->
+      Printf.sprintf "(fn %s %s %s)" (Token.to_string name)
+        (String.concat " " (List.map Token.to_string params))
+        (print_statements body)
   | Var (token, expr) ->
       Printf.sprintf "(var %s %s)" (Token.to_string token)
         (Option.fold ~none:"nil" ~some:print_expr expr)
