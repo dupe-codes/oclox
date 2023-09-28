@@ -31,7 +31,7 @@ let run_file file_name =
       match error_type with
       | Lox_error.Syntax_error -> exit 65
       | Lox_error.Runtime_error -> exit 70)
-    (run file_contents (Environment.init ()))
+    (run file_contents (Environment.global ()))
 
 let _ =
   let args_length = Array.length Sys.argv in
@@ -40,4 +40,4 @@ let _ =
     let _ = Printf.printf "Usage: oclox [script]" in
     exit 64
   else if Array.length Sys.argv = 2 then run_file Sys.argv.(1)
-  else run_prompt (Oclox.Environment.init ())
+  else run_prompt (Oclox.Environment.global ())

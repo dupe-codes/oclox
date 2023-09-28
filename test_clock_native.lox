@@ -1,0 +1,19 @@
+var start = clock();
+
+var a = 0;
+var temp;
+
+for (var b = 1; a < 100000; b = temp + b) {
+  print a;
+  temp = a;
+  a = b;
+}
+
+var end = clock();
+
+print "Start: ";
+print start;
+print "End: ";
+print end;
+print "Time taken (s): ";
+print (end - start);

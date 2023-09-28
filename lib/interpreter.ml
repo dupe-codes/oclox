@@ -73,6 +73,15 @@ let apply_binary left right (op : Token.t) =
   | Token.EQUAL_EQUAL, l, r -> Some (Value.Bool (l = r))
   | _ -> failwith "unimplemented"
 
+let apply_fn paren (fn_def : Value.function_type) args fn =
+  if List.length args != fn_def.arity then
+    raise
+      (Lox_error.Runtime
+         ( paren,
+           Printf.sprintf "Expected %d arguments but got %d." fn_def.arity
+             (List.length args) ))
+  else fn args
+
 let rec evaluate env expr =
   match expr with
   | Expression.Literal value -> (env, value)
@@ -101,20 +110,7 @@ let rec evaluate env expr =
         || (op.token_type = Token.AND && not left_truthy)
       then (env, left_result)
       else evaluate env right
-  | Call (callee, paren, args) -> (
-      let env, callee = evaluate env callee in
-      let env, args =
-        List.fold_left
-          (fun (env, args) a ->
-            let new_env, arg = evaluate env a in
-            (new_env, arg :: args))
-          (env, []) args
-      in
-      match callee with
-      | Some (Value.Function name) -> (env, Some (Value.String name))
-      | _ ->
-          raise
-            (Lox_error.Runtime (paren, "Can only call functions and classes")))
+  | Call (callee, paren, args) -> evaluate_fn_call callee paren args env
   | Assign ({ token_type = Token.IDENTIFIER name; line }, expr) ->
       let env, value = evaluate env expr in
       let result = Environment.assign env name value in
@@ -137,6 +133,22 @@ let rec evaluate env expr =
       raise
         (Lox_error.Runtime
            (token, "Invalid variable assignment, expected identifier."))
+
+and evaluate_fn_call callee paren args env =
+  let env, callee = evaluate env callee in
+  let env, args =
+    List.fold_left
+      (fun (env, args) a ->
+        let new_env, arg = evaluate env a in
+        (new_env, arg :: args))
+      (env, []) args
+  in
+  match callee with
+  | Some (Value.Function fn_def) ->
+      (env, apply_fn paren fn_def args (fun _ -> None))
+  | Some (Value.Native (fn_def, fn)) -> (env, apply_fn paren fn_def args fn)
+  | _ ->
+      raise (Lox_error.Runtime (paren, "Can only call functions and classes"))
 
 let rec execute_block env statements =
   let block_scope = Environment.with_enclosing env in

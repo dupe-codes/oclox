@@ -1,6 +1,7 @@
 type t
 
 val init : unit -> t
+val global : unit -> t
 val with_enclosing : t -> t
 val get_enclosing : t -> t option
 val get : t -> string -> (Value.t option, string) result

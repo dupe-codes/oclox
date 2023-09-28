@@ -32,3 +32,11 @@ let rec assign env name value =
 let print env =
   Map.iteri env.values ~f:(fun ~key:name ~data:value ->
       Stdlib.Printf.printf "%s = %s\n%!" name (Value.to_string value))
+
+let global () =
+  let env = init () in
+  define env "clock"
+    (Some
+       (Value.Native
+          ( { name = "clock"; arity = 0 },
+            fun _ -> Some (Value.Float (Unix.time ())) )))
