@@ -3,6 +3,7 @@ let print_literal literal =
   | Some (Value.String s) -> s
   | Some (Value.Float f) -> string_of_float f
   | Some (Value.Bool bool) -> string_of_bool bool
+  | Some (Value.Function name) -> Printf.sprintf "<fn %s>" name
   | None -> "nil"
 
 let rec parenthesize lexeme exprs =
@@ -21,6 +22,8 @@ and print_expr ast =
       parenthesize ("Assign " ^ Token.to_string token) [ expr ]
   | Logical (l, op, r) ->
       parenthesize ("Logical: " ^ Token.get_lexeme op) [ l; r ]
+  | Call (callee, paren, arguments) ->
+      parenthesize ("Call: " ^ Token.get_lexeme paren) (callee :: arguments)
 
 let rec print_statement = function
   | Statement.Expression expr -> print_expr expr

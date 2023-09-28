@@ -2,6 +2,7 @@ type t = { tokens : Token.t list }
 
 exception ParseError
 
+let max_fn_arity = 255
 let init tokens = { tokens }
 let peek parser = List.hd parser.tokens
 
@@ -107,6 +108,40 @@ and primary parser =
       (Expression.Variable next_token, parser)
   | _ -> raise (parse_error next_token "Expected expression")
 
+and call parser =
+  let expr, parser = primary parser in
+  let rec loop expr parser =
+    let maybe_token, parser = match_token parser [ Token.LEFT_PAREN ] in
+    match maybe_token with
+    | Some _ ->
+        let expr, parser = finish_call expr parser in
+        loop expr parser
+    | None -> (expr, parser)
+  in
+  let expr, parser = loop expr parser in
+  (expr, parser)
+
+and finish_call callee parser =
+  let rec loop parser args =
+    if List.length args >= max_fn_arity then
+      raise (parse_error (peek parser) "Cannot have more than 255 arguments")
+    else
+      let maybe_token, parser = match_token parser [ Token.COMMA ] in
+      match maybe_token with
+      | Some _ ->
+          let arg, parser = expression parser in
+          loop parser (arg :: args)
+      | None -> (List.rev args, parser)
+  in
+  let args, parser =
+    if not (check parser Token.RIGHT_PAREN) then
+      let first_arg, parser = expression parser in
+      loop parser [ first_arg ]
+    else ([], parser)
+  in
+  let paren, parser = consume Token.RIGHT_PAREN parser in
+  (Expression.Call (callee, paren, args), parser)
+
 and unary parser =
   let maybe_token, parser = match_token parser [ Token.BANG; Token.MINUS ] in
   match maybe_token with
@@ -114,7 +149,7 @@ and unary parser =
       let right, parser = unary parser in
       (Expression.Unary (operator, right), parser)
   | None ->
-      let expr, parser = primary parser in
+      let expr, parser = call parser in
       (expr, parser)
 
 and factor parser =

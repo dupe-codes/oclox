@@ -101,6 +101,20 @@ let rec evaluate env expr =
         || (op.token_type = Token.AND && not left_truthy)
       then (env, left_result)
       else evaluate env right
+  | Call (callee, paren, args) -> (
+      let env, callee = evaluate env callee in
+      let env, args =
+        List.fold_left
+          (fun (env, args) a ->
+            let new_env, arg = evaluate env a in
+            (new_env, arg :: args))
+          (env, []) args
+      in
+      match callee with
+      | Some (Value.Function name) -> (env, Some (Value.String name))
+      | _ ->
+          raise
+            (Lox_error.Runtime (paren, "Can only call functions and classes")))
   | Assign ({ token_type = Token.IDENTIFIER name; line }, expr) ->
       let env, value = evaluate env expr in
       let result = Environment.assign env name value in
