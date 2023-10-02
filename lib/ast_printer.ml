@@ -40,6 +40,9 @@ let rec print_statement = function
       Printf.sprintf "(fn %s %s %s)" (Token.to_string name)
         (String.concat " " (List.map Token.to_string params))
         (print_statements body)
+  | Return (_, expr) ->
+      Printf.sprintf "(return %s)"
+        (Option.fold ~none:"nil" ~some:print_expr expr)
   | Var (token, expr) ->
       Printf.sprintf "(var %s %s)" (Token.to_string token)
         (Option.fold ~none:"nil" ~some:print_expr expr)

@@ -1,3 +1,5 @@
+exception Return of Value.t option
+
 let is_truthy value =
   match value with Some (Value.Bool x) -> x | None -> false | _ -> true
 
@@ -142,6 +144,7 @@ and evaluate_fn_call callee paren args env =
         (new_env, arg :: args))
       (env, []) args
   in
+  let args = List.rev args in
   match callee with
   | Some (Value.Function fn_def) -> apply_function env paren args fn_def
   | Some (Value.Native (fn_def, fn)) ->
@@ -161,7 +164,23 @@ and apply_function env paren args fn_def =
       args_env
       (List.combine fn_declaration.params args)
   in
-  execute_block args_env fn_declaration.body
+  try
+    execute_block args_env fn_declaration.body |> fun (env, res) ->
+    (Option.get (Environment.get_enclosing env), res)
+  with Return value ->
+    (* FIXME: This is incorrect - the enclosing env from args_env will _not_ contain
+        any mutations that may have happened in the execution of the function block
+
+       My idea: in the returned exception, pass back up the environment to return.
+       To know which to use in the linked list of environments, we can pass an arg
+       counting the block depth from here in execute block, and use that to index
+       back in env linked list when throwing the return exception
+
+       We can pass this depth count in the env itself (int option). If one is set in
+       an env, every call to Environment#with_enclosing will increment the count,
+       and Environment#get_enclosing will decrement it
+    *)
+    (Option.get (Environment.get_enclosing args_env), value)
 
 and execute_block env statements =
   let block_scope = Environment.with_enclosing env in
@@ -200,6 +219,10 @@ and execute env statement =
       evaluate_if env condition then_branch else_branch
   | While (condition, body) -> execute_while env condition body
   | Function declaration -> Environment.define_fn env declaration
+  | Return (_, expr) ->
+      (*TODO: Brainstorm an alternative to this exceptions-as-control-flow approach*)
+      let _, value = Option.fold ~none:(env, None) ~some:(evaluate env) expr in
+      raise (Return value)
   | Var ({ token_type = Token.IDENTIFIER name; line = _ }, expr) ->
       let env, value =
         Option.fold ~none:(env, None) ~some:(evaluate env) expr

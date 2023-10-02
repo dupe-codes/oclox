@@ -363,10 +363,25 @@ and for_statement parser =
     in
     (body, parser)
 
+and return_statement return_token parser =
+  let value_expr, parser =
+    if check parser Token.SEMICOLON then (None, parser)
+    else expression parser |> fun (expr, parser) -> (Some expr, parser)
+  in
+  let _, parser = consume Token.SEMICOLON parser in
+  (Some (Statement.Return (return_token, value_expr)), parser)
+
 and statement parser =
   let maybe_token, parser =
     match_token parser
-      [ Token.PRINT; Token.LEFT_BRACE; Token.IF; Token.WHILE; Token.FOR ]
+      [
+        Token.PRINT;
+        Token.LEFT_BRACE;
+        Token.IF;
+        Token.WHILE;
+        Token.FOR;
+        Token.RETURN;
+      ]
   in
   match maybe_token with
   | Some { token_type = Token.PRINT; _ } ->
@@ -377,6 +392,9 @@ and statement parser =
       (stmt, parser)
   | Some { token_type = Token.WHILE; _ } ->
       let stmt, parser = while_statement parser in
+      (stmt, parser)
+  | Some { token_type = Token.RETURN; _ } ->
+      let stmt, parser = return_statement (Option.get maybe_token) parser in
       (stmt, parser)
   | Some { token_type = Token.FOR; _ } ->
       let stmt, parser = for_statement parser in
