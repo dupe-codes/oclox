@@ -1,10 +1,15 @@
 open Base
 
-type t = {
-  values : Value.t option Map.M(String).t;
-  functions : Statement.fn_declaration Map.M(String).t;
+type closed_function = { fn : Statement.fn_declaration; closure : t }
+(* This type is needed because we introduce a cyclical dependency if the
+   closure fielded is added to Statement.fn_declaration *)
+
+and t = {
+  mutable values : Value.t option Map.M(String).t;
+  mutable functions : closed_function Map.M(String).t;
   enclosing : t option;
 }
+
 (* Runtime representation of a lexical environment. Holds mapping
    from variable identifier lexemes to evaluated Value results, and function definition
    lexemes to function declarations *)
@@ -35,22 +40,20 @@ let rec get_fn env fn_name =
       else failwith "No such function."
   | Some v -> v
 
-let define env name value =
-  { env with values = Map.set env.values ~key:name ~data:value }
+let define env key data = env.values <- Map.set env.values ~key ~data
 
-let define_fn env (fn_declaration : Statement.fn_declaration) =
-  match fn_declaration.name.token_type with
+let define_fn env (closed_fn : closed_function) =
+  match closed_fn.fn.name.token_type with
   | Token.IDENTIFIER name ->
-      {
-        env with
-        values =
+      let _ =
+        env.values <-
           Map.set env.values ~key:name
             ~data:
               (Some
                  (Value.Function
-                    { name; arity = List.length fn_declaration.params }));
-        functions = Map.set env.functions ~key:name ~data:fn_declaration;
-      }
+                    { name; arity = List.length closed_fn.fn.params }))
+      in
+      env.functions <- Map.set env.functions ~key:name ~data:closed_fn
   | _ -> failwith "Function name should be an identifier"
 
 let rec assign env name value =
@@ -58,8 +61,6 @@ let rec assign env name value =
   | None ->
       if Option.is_some env.enclosing then
         assign (Option.value_exn env.enclosing) name value
-        |> Result.map ~f:(fun enclosing ->
-               { env with enclosing = Some enclosing })
       else Error ("Undefined variable " ^ name)
   | Some _ -> Ok (define env name value)
 
@@ -69,8 +70,11 @@ let print env =
 
 let global () =
   let env = init () in
-  define env "clock"
-    (Some
-       (Value.Native
-          ( { name = "clock"; arity = 0 },
-            fun _ -> Some (Value.Float (Unix.time ())) )))
+  let _ =
+    define env "clock"
+      (Some
+         (Value.Native
+            ( { name = "clock"; arity = 0 },
+              fun _ -> Some (Value.Float (Unix.time ())) )))
+  in
+  env

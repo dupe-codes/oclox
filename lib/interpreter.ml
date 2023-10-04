@@ -85,38 +85,37 @@ let check_arity_mismatch paren args arity =
 
 let rec evaluate env expr =
   match expr with
-  | Expression.Literal value -> (env, value)
+  | Expression.Literal value -> value
   | Grouping expr -> evaluate env expr
   | Unary (token, expr) ->
-      let env, right = evaluate env expr in
-      (env, apply_unary token right)
+      let right = evaluate env expr in
+      apply_unary token right
   | Binary (left, op, right) ->
-      let env, left_val = evaluate env left in
-      let env, right_val = evaluate env right in
-      (env, apply_binary left_val right_val op)
+      let left_val = evaluate env left in
+      let right_val = evaluate env right in
+      apply_binary left_val right_val op
   | Variable { token_type = Token.IDENTIFIER name; line } ->
       let result = Environment.get env name in
-      Result.fold
-        ~ok:(fun value -> (env, value))
+      Result.fold ~ok:Fun.id
         ~error:(fun err ->
           raise
             (Lox_error.Runtime
                ({ token_type = Token.IDENTIFIER name; line }, err)))
         result
   | Logical (left, op, right) ->
-      let env, left_result = evaluate env left in
+      let left_result = evaluate env left in
       let left_truthy = is_truthy left_result in
       if
         (op.token_type = Token.OR && left_truthy)
         || (op.token_type = Token.AND && not left_truthy)
-      then (env, left_result)
+      then left_result
       else evaluate env right
   | Call (callee, paren, args) -> evaluate_fn_call callee paren args env
   | Assign ({ token_type = Token.IDENTIFIER name; line }, expr) ->
-      let env, value = evaluate env expr in
+      let value = evaluate env expr in
       let result = Environment.assign env name value in
       Result.fold
-        ~ok:(fun env -> (env, value))
+        ~ok:(fun _ -> value)
         ~error:(fun err ->
           raise
             (Lox_error.Runtime
@@ -136,97 +135,83 @@ let rec evaluate env expr =
            (token, "Invalid variable assignment, expected identifier."))
 
 and evaluate_fn_call callee paren args env =
-  let env, callee = evaluate env callee in
-  let env, args =
-    List.fold_left
-      (fun (env, args) a ->
-        let new_env, arg = evaluate env a in
-        (new_env, arg :: args))
-      (env, []) args
+  let callee = evaluate env callee in
+  let args =
+    List.rev
+      (List.fold_left
+         (fun args a ->
+           let arg = evaluate env a in
+           arg :: args)
+         [] args)
   in
-  let args = List.rev args in
   match callee with
   | Some (Value.Function fn_def) -> apply_function env paren args fn_def
   | Some (Value.Native (fn_def, fn)) ->
       let _ = check_arity_mismatch paren args fn_def.arity in
-      (env, fn args)
+      fn args
   | _ ->
       raise (Lox_error.Runtime (paren, "Can only call functions and classes"))
 
 and apply_function env paren args fn_def =
   let _ = check_arity_mismatch paren args fn_def.arity in
-  let fn_declaration = Environment.get_fn env fn_def.name in
-  let args_env = Environment.with_enclosing env in
-  let args_env =
-    List.fold_left
-      (fun env (param, arg) ->
-        Environment.define env (Token.get_identifier_name param) arg)
-      args_env
-      (List.combine fn_declaration.params args)
+  let closed_fn = Environment.get_fn env fn_def.name in
+  let args_env = Environment.with_enclosing closed_fn.closure in
+  let _ =
+    List.map
+      (fun (param, arg) ->
+        Environment.define args_env (Token.get_identifier_name param) arg)
+      (List.combine closed_fn.fn.params args)
   in
   try
-    execute_block args_env fn_declaration.body |> fun (env, res) ->
-    (Option.get (Environment.get_enclosing env), res)
-  with Return value ->
-    (* FIXME: This is incorrect - the enclosing env from args_env will _not_ contain
-        any mutations that may have happened in the execution of the function block
-
-       My idea: in the returned exception, pass back up the environment to return.
-       To know which to use in the linked list of environments, we can pass an arg
-       counting the block depth from here in execute block, and use that to index
-       back in env linked list when throwing the return exception
-
-       We can pass this depth count in the env itself (int option). If one is set in
-       an env, every call to Environment#with_enclosing will increment the count,
-       and Environment#get_enclosing will decrement it
-    *)
-    (Option.get (Environment.get_enclosing args_env), value)
+    let _ = execute_block args_env closed_fn.fn.body in
+    None
+  with Return value -> value
 
 and execute_block env statements =
   let block_scope = Environment.with_enclosing env in
-  let env =
-    List.fold_left (fun curr_env s -> execute curr_env s) block_scope statements
+  let _ =
+    List.map (fun statement -> execute block_scope statement) statements
   in
-  (Option.get (Environment.get_enclosing env), None)
+  ()
 
 and evaluate_if env condition then_branch else_branch =
-  let env, condition_result = evaluate env condition in
+  let condition_result = evaluate env condition in
   match condition_result with
   | Some (Value.Bool true) -> execute env then_branch
   | Some (Value.Bool false) ->
-      Option.fold ~none:env ~some:(execute env) else_branch
+      Option.fold ~none:() ~some:(execute env) else_branch
   | Some _ -> execute env then_branch
-  | None -> env
+  | None -> ()
 
 and execute_while env condition body =
   let rec loop env =
-    let env, condition_result = evaluate env condition in
-    if not (is_truthy condition_result) then env else loop (execute env body)
+    let condition_result = evaluate env condition in
+    if is_truthy condition_result then
+      let _ = execute env body in
+      loop env
   in
   loop env
 
 and execute env statement =
   match statement with
   | Statement.Expression expr ->
-      let env, _ = evaluate env expr in
-      env
+      let _ = evaluate env expr in
+      ()
   | Print expr ->
-      let env, value = evaluate env expr in
-      let _ = Printf.printf "%s\n%!" (Value.to_string value) in
-      env
-  | Block statements -> fst (execute_block env statements)
+      let value = evaluate env expr in
+      Printf.printf "%s\n%!" (Value.to_string value)
+  | Block statements -> execute_block env statements
   | If (condition, then_branch, else_branch) ->
       evaluate_if env condition then_branch else_branch
   | While (condition, body) -> execute_while env condition body
-  | Function declaration -> Environment.define_fn env declaration
+  | Function declaration ->
+      Environment.define_fn env { fn = declaration; closure = env }
   | Return (_, expr) ->
       (*TODO: Brainstorm an alternative to this exceptions-as-control-flow approach*)
-      let _, value = Option.fold ~none:(env, None) ~some:(evaluate env) expr in
+      let value = Option.fold ~none:None ~some:(evaluate env) expr in
       raise (Return value)
   | Var ({ token_type = Token.IDENTIFIER name; line = _ }, expr) ->
-      let env, value =
-        Option.fold ~none:(env, None) ~some:(evaluate env) expr
-      in
+      let value = Option.fold ~none:None ~some:(evaluate env) expr in
       Environment.define env name value
   | Var (token, _) ->
       (* This case should be impossible - use of an invalid, non-identifier
@@ -238,9 +223,7 @@ and execute env statement =
 
 let interpret statements env =
   try
-    let env =
-      List.fold_left (fun curr_env s -> execute curr_env s) env statements
-    in
-    Ok env
+    let _ = List.map (fun s -> execute env s) statements in
+    Ok ()
   with Lox_error.Runtime (token, message) ->
     Lox_error.init_runtime token message

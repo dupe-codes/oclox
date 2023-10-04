@@ -19,9 +19,8 @@ let rec run_prompt env =
   match line with
   | None -> ()
   | Some line ->
-      let result = run line env in
-      let new_env = Result.fold ~ok:Fun.id ~error:(fun _ -> env) result in
-      run_prompt new_env
+      let _ = run line env in
+      run_prompt env
 
 let run_file file_name =
   let open Oclox in

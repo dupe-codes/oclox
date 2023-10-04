@@ -1,0 +1,14 @@
+var a = 2;
+fun test() {
+  a = 3;
+  print "Inside test";
+  print a;
+}
+
+print "Before test";
+print a;
+
+test();
+
+print "After test";
+print a;
