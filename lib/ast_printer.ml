@@ -4,7 +4,8 @@ let print_literal literal =
   | Some (Value.Float f) -> string_of_float f
   | Some (Value.Bool bool) -> string_of_bool bool
   | Some (Value.Function { name; _ }) -> Printf.sprintf "<fn %s>" name
-  | Some (Value.Native ({ name; _ }, _)) -> Printf.sprintf "<native fn %s>" name
+  | Some (Value.Native { function_type = { name; _ }; _ }) ->
+      Printf.sprintf "<native fn %s>" name
   | None -> "nil"
 
 let rec parenthesize lexeme exprs =

@@ -74,7 +74,9 @@ let global () =
     define env "clock"
       (Some
          (Value.Native
-            ( { name = "clock"; arity = 0 },
-              fun _ -> Some (Value.Float (Unix.time ())) )))
+            {
+              function_type = { name = "clock"; arity = 0 };
+              fn = (fun _ -> Some (Value.Float (Unix.time ())));
+            }))
   in
   env

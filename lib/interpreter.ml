@@ -146,7 +146,7 @@ and evaluate_fn_call callee paren args env =
   in
   match callee with
   | Some (Value.Function fn_def) -> apply_function env paren args fn_def
-  | Some (Value.Native (fn_def, fn)) ->
+  | Some (Value.Native { function_type = fn_def; fn }) ->
       let _ = check_arity_mismatch paren args fn_def.arity in
       fn args
   | _ ->

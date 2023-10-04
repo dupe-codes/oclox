@@ -1,3 +1,6 @@
+open Ppx_compare_lib.Builtin
+open Sexplib.Std
+
 (* TODO: derive show to get to_string for free *)
 type token_type =
   (* Single-character tokens *)
@@ -46,8 +49,9 @@ type token_type =
   | WHITESPACE
   | NEWLINE
   | EOF
+[@@deriving compare, sexp]
 
-type t = { token_type : token_type; line : int }
+type t = { token_type : token_type; line : int } [@@deriving compare, sexp]
 (* NOTE:
     - All tokens associated with: lexeme + line number
     - Some tokens also have literal
