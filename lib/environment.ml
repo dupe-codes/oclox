@@ -24,6 +24,10 @@ let init () =
 let with_enclosing enclosing = { (init ()) with enclosing = Some enclosing }
 let get_enclosing env = env.enclosing
 
+let print env =
+  Map.iteri env.values ~f:(fun ~key:name ~data:value ->
+      Stdlib.Printf.printf "%s = %s\n%!" name (Value.to_string value))
+
 let rec get env var =
   match Map.find env.values var with
   | None ->
@@ -31,6 +35,16 @@ let rec get env var =
         get (Option.value_exn env.enclosing) var
       else Error ("Undefined variable " ^ var)
   | Some v -> Ok v
+
+let ancestor env distance =
+  let rec loop env distance =
+    if distance = 0 then env
+    else
+      match env.enclosing with
+      | None -> failwith "No enclosing environment"
+      | Some enclosing -> loop enclosing (distance - 1)
+  in
+  loop env distance
 
 let rec get_fn env fn_name =
   match Map.find env.functions fn_name with
@@ -40,6 +54,8 @@ let rec get_fn env fn_name =
       else failwith "No such function."
   | Some v -> v
 
+let get_at env var distance = get (ancestor env distance) var
+let get_fn_at env fn_name distance = get_fn (ancestor env distance) fn_name
 let define env key data = env.values <- Map.set env.values ~key ~data
 
 let define_fn env (closed_fn : closed_function) =
@@ -64,9 +80,8 @@ let rec assign env name value =
       else Error ("Undefined variable " ^ name)
   | Some _ -> Ok (define env name value)
 
-let print env =
-  Map.iteri env.values ~f:(fun ~key:name ~data:value ->
-      Stdlib.Printf.printf "%s = %s\n%!" name (Value.to_string value))
+let assign_at env name distance value =
+  assign (ancestor env distance) name value
 
 let global () =
   let env = init () in

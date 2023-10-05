@@ -7,10 +7,16 @@ let run source env =
       let parser = Parser.init tokens in
       match Parser.parse parser with
       | Some statements ->
-          (*let _ =*)
-          (*Printf.printf "%s\n%!" (Ast_printer.print_statements statements)*)
-          (*in*)
-          Interpreter.interpret statements env
+          let resolver = Resolver.init () |> Resolver.resolve statements in
+          let _ =
+            Printf.printf "Resolved variables:\n%s\n\n%!"
+              (Resolver.resolved_locals_to_string resolver)
+          in
+          let _ =
+            Printf.printf "AST:\n%s\n\n%!"
+              (Ast_printer.print_statements statements)
+          in
+          Interpreter.interpret statements env resolver
       | None -> Lox_error.init 0 "Parsing failure")
 
 let rec run_prompt env =

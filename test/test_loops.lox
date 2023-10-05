@@ -1,0 +1,33 @@
+
+print "Test while loop";
+print "";
+var x = 0;
+while (x < 10) {
+  print x;
+  x = x + 1;
+}
+
+print "--------------";
+print "Test for loop";
+print "--------------";
+for (var i = 0; i < 10; i = i + 1) {
+  print i;
+}
+
+print "--------------";
+print "Test for loop, no init";
+print "--------------";
+
+var y = 0;
+for (; y < 10; y = y + 1) {
+  print y;
+}
+
+print "--------------";
+print "Test for loop, expression init";
+print "--------------";
+
+for (var y = (2*2); y < 10; y = y + 1) {
+  print y;
+}
+
