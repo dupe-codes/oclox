@@ -19,8 +19,8 @@ and print_expr ast =
   | Grouping expr -> parenthesize "group" [ expr ]
   | Literal literal -> print_literal literal
   | Unary (op, r) -> parenthesize (Token.get_lexeme op) [ r ]
-  | Variable name -> Token.to_string name
-  | Assign (token, expr) ->
+  | Variable (name, _) -> Token.to_string name
+  | Assign (token, expr, _) ->
       parenthesize ("Assign " ^ Token.to_string token) [ expr ]
   | Logical (l, op, r) ->
       parenthesize ("Logical: " ^ Token.get_lexeme op) [ l; r ]

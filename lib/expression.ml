@@ -6,8 +6,8 @@ type t =
   | Grouping of t
   | Literal of Value.t option
   | Unary of Token.t * t
-  | Variable of Token.t
-  | Assign of Token.t * t
+  | Variable of Token.t * int
+  | Assign of Token.t * t * int
   | Logical of t * Token.t * t
   | Call of t * Token.t * t list
 [@@deriving compare, sexp]

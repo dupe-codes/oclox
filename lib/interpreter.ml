@@ -103,13 +103,14 @@ let rec evaluate env resolver expr =
       let left_val = evaluate env resolver left in
       let right_val = evaluate env resolver right in
       apply_binary left_val right_val op
-  | Variable { token_type = Token.IDENTIFIER name; line } ->
+  | Variable ({ token_type = Token.IDENTIFIER name; line }, _) ->
       let distance = Resolver.get_resolved_var_depth resolver expr in
       (*let _ =*)
-      (*Printf.printf "Distance: %s\n%!"*)
+      (*Printf.printf "Resolved distance: %s\n%!"*)
       (*(if Option.is_none distance then "None"*)
       (*else string_of_int (Option.get distance))*)
       (*in*)
+      (*let _ = Environment.print env in*)
       let result =
         if Option.is_none distance then Environment.get env name
         else Environment.get_at env name (Option.get distance)
@@ -130,7 +131,7 @@ let rec evaluate env resolver expr =
       else evaluate env resolver right
   | Call (callee, paren, args) ->
       evaluate_fn_call callee paren args env resolver
-  | Assign ({ token_type = Token.IDENTIFIER name; line }, expr) ->
+  | Assign ({ token_type = Token.IDENTIFIER name; line }, expr, _) ->
       let value = evaluate env resolver expr in
       let distance = Resolver.get_resolved_var_depth resolver expr in
       let result =
@@ -144,13 +145,13 @@ let rec evaluate env resolver expr =
             (Lox_error.Runtime
                ({ token_type = Token.IDENTIFIER name; line }, err)))
         result
-  | Variable token ->
+  | Variable (token, _) ->
       (* This case should be impossible - parsing will never make a
          Variable token not holding an identifier *)
       raise
         (Lox_error.Runtime
            (token, "Invalid variable access, expected identifier."))
-  | Assign (token, _) ->
+  | Assign (token, _, _) ->
       (* This case should be impossible - parsing will never make a
          Variable token not holding an identifier *)
       raise

@@ -43,12 +43,22 @@ let update_top_scope name resolver fully_initialized =
 let declare name resolver = update_top_scope name resolver false
 let define name resolver = update_top_scope name resolver true
 
+let rec print_scopes scopes i =
+  match scopes with
+  | [] -> ()
+  | _ :: rest ->
+      let _ = Stdlib.Printf.printf "Scope %d\n" i in
+      print_scopes rest (i + 1)
+
 let resolve_local expr var resolver =
+  (*let _ = Stdlib.Printf.printf "\nResolving %s\n" var in*)
+  (*let _ = print_scopes resolver.scopes 0 in*)
   let depth =
     List.findi resolver.scopes ~f:(fun _ scope -> Map.mem scope var)
   in
   match depth with
   | Some (depth, _) ->
+      (*let _ = Stdlib.Printf.printf "Resolved in scope %d" depth in*)
       {
         resolver with
         resolved_locals = Map.set resolver.resolved_locals ~key:expr ~data:depth;
@@ -88,9 +98,9 @@ and resolve_function fn resolver =
 
 and resolve_expr expr resolver =
   match expr with
-  | Expression.Variable name ->
+  | Expression.Variable (name, _) ->
       resolve_local expr (Token.get_identifier_name name) resolver
-  | Assign (name, value) ->
+  | Assign (name, value, _) ->
       resolve_expr value resolver
       |> resolve_local expr (Token.get_identifier_name name)
   | Binary (left, _, right) -> resolve_expr left resolver |> resolve_expr right

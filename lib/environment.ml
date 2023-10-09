@@ -25,8 +25,19 @@ let with_enclosing enclosing = { (init ()) with enclosing = Some enclosing }
 let get_enclosing env = env.enclosing
 
 let print env =
-  Map.iteri env.values ~f:(fun ~key:name ~data:value ->
-      Stdlib.Printf.printf "%s = %s\n%!" name (Value.to_string value))
+  (* prints the full environment chain, in a pre-order traversal *)
+  let rec loop env depth =
+    let _ = Stdlib.Printf.printf "\n------------------\n" in
+    let _ = Stdlib.Printf.printf "\nEnvironment %d\n" depth in
+    let _ =
+      Map.iteri env.values ~f:(fun ~key:name ~data:value ->
+          Stdlib.Printf.printf "%s = %s\n%!" name (Value.to_string value))
+    in
+    match env.enclosing with
+    | None -> ()
+    | Some enclosing -> loop enclosing (depth + 1)
+  in
+  loop env 0
 
 let rec get env var =
   match Map.find env.values var with

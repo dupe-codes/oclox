@@ -2,6 +2,7 @@ type t = { tokens : Token.t list }
 
 exception ParseError
 
+let var_id = ref 0
 let max_fn_arity = 255
 let init tokens = { tokens }
 let peek parser = List.hd parser.tokens
@@ -105,7 +106,10 @@ and primary parser =
       grouping parser
   | Token.IDENTIFIER n ->
       let _, parser = consume (Token.IDENTIFIER n) parser in
-      (Expression.Variable next_token, parser)
+      (* Add unique id so this expression can be identified later *)
+      let id = !var_id in
+      var_id := id + 1;
+      (Expression.Variable (next_token, id), parser)
   | _ -> raise (parse_error next_token "Expected expression")
 
 and call parser =
@@ -188,7 +192,11 @@ and assignment parser =
   | Some equals -> (
       let value, parser = assignment parser in
       match expr with
-      | Expression.Variable name -> (Expression.Assign (name, value), parser)
+      | Expression.Variable (name, _) ->
+          (* Add unique id so this expression can be identified later *)
+          let id = !var_id in
+          var_id := id + 1;
+          (Expression.Assign (name, value, id), parser)
       | _ -> raise (parse_error equals "Invalid assignment target"))
 
 and expression parser = assignment parser
