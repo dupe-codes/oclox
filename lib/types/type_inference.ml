@@ -12,53 +12,28 @@ type substitution = Types.mono_type Map.M(String).t
 let init_substitution (mappings : (string * Types.mono_type) list) =
   Map.of_alist_exn (module String) mappings
 
-let pp_context fmt (context : context) =
-  let pp_item fmt (key, data) =
-    Stdlib.Format.fprintf fmt "%s : %s" key (Types.show_poly_type data)
-  in
-
-  (* Convert the context map to a list and print each item *)
-  Map.to_alist context
-  |> List.iter ~f:(fun item ->
-         pp_item fmt item;
-         Stdlib.Format.fprintf fmt "; ")
-
-let pp_substitution fmt (substitution : substitution) =
-  let pp_item fmt (key, data) =
-    Stdlib.Format.fprintf fmt "%s -> %s" key (Types.show_mono_type data)
-  in
-
-  (* Convert the substitution map to a list and print each item *)
-  Map.to_alist substitution
-  |> List.iter ~f:(fun item ->
-         pp_item fmt item;
-         Stdlib.Format.fprintf fmt "; ")
-
 type substitution_target =
   | Context of context
   | Substitution of substitution
   | PolyType of Types.poly_type
   | MonoType of Types.mono_type
-[@@deriving show]
 
 let rec apply_monotype_substitution substitution = function
   | Types.TypeVar v -> (
       match Map.find substitution v with Some t -> t | None -> Types.TypeVar v)
-  | Types.TypeConstructor constructor ->
-      TypeConstructor
-        (match constructor with
-        | Types.Int -> Types.Int
-        | Types.Bool -> Types.Bool
+  | Types.TypeFunctionApplication type_function ->
+      TypeFunctionApplication
+        (match type_function with
         | Types.Arrow mus ->
             Types.Arrow
-              (List.map mus ~f:(apply_monotype_substitution substitution)))
+              (List.map mus ~f:(apply_monotype_substitution substitution))
+        | t -> t)
 
 and apply_polytype_substitution substitution = function
   | Types.MonoType t ->
       Types.MonoType (apply_monotype_substitution substitution t)
-  | UniversallyQuantified (t_var, poly_t) ->
-      UniversallyQuantified
-        (t_var, apply_polytype_substitution substitution poly_t)
+  | Quantified (t_var, poly_t) ->
+      Quantified (t_var, apply_polytype_substitution substitution poly_t)
 
 and apply substitution target =
   match target with

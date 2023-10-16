@@ -12,17 +12,12 @@
  * sigma ::= mu
  *        | Va. sigma
  *)
-type type_var = string [@@deriving show]
+type type_var = string
 
-type type_constructor = Arrow of mono_type list | Int | Bool [@@deriving show]
+type type_function = Arrow of mono_type list | Int | Bool | Unit
+and mono_type = TypeVar of type_var | TypeFunctionApplication of type_function
 
-and mono_type = TypeVar of type_var | TypeConstructor of type_constructor
-[@@deriving show]
-
-type poly_type =
-  | MonoType of mono_type
-  | UniversallyQuantified of type_var * poly_type
-[@@deriving show]
+type poly_type = MonoType of mono_type | Quantified of type_var * poly_type
 
 let create_new_type_var =
   let counter = ref 0 in

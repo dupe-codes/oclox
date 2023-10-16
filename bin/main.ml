@@ -42,36 +42,44 @@ let _ =
   let open Oclox in
   let subs =
     [
-      ("a", Types.TypeConstructor Types.Int);
-      ("b", Types.TypeConstructor Types.Bool);
+      ("a", Types.TypeFunctionApplication Types.Int);
+      ("b", Types.TypeFunctionApplication Types.Bool);
       ( "c",
-        Types.TypeConstructor
+        Types.TypeFunctionApplication
           (Types.Arrow
              [
-               Types.TypeConstructor Types.Int; Types.TypeConstructor Types.Int;
+               Types.TypeFunctionApplication Types.Int;
+               Types.TypeFunctionApplication Types.Int;
              ]) );
+      ("d", Types.TypeFunctionApplication Types.Unit);
     ]
   in
   let ctx =
     [
       ("a", Types.MonoType (Types.TypeVar "a"));
-      ( "i",
-        Types.UniversallyQuantified
-          ( "f",
+      ( "f",
+        Types.Quantified
+          ( "i",
             Types.MonoType
-              (Types.TypeConstructor
-                 (Types.Arrow
-                    [ Types.TypeVar "b"; Types.TypeConstructor Types.Bool ])) )
-      );
+              (Types.TypeFunctionApplication
+                 (Types.Arrow [ Types.TypeVar "i"; Types.TypeVar "b" ])) ) );
+      ( "g",
+        Types.MonoType
+          (Types.TypeFunctionApplication
+             (Types.Arrow [ Types.TypeVar "d"; Types.TypeVar "d" ])) );
     ]
   in
   let context = Type_inference.init_context ctx in
   let s1 = Type_inference.init_substitution subs in
+  let _ =
+    Format.printf "@[<v 2>Substitution:@,%a@,@]"
+      Types_printer.print_substitution s1
+  in
   let transformed_ctx =
     Type_inference.apply s1 (Type_inference.Context context)
   in
-  Format.printf "@[<v 2>Transformed context:@,%a@,@]"
-    Type_inference.pp_substitution_target transformed_ctx
+  Format.printf "\n\n@[<v 2>Transformed context:@,%a@,@]"
+    Types_printer.print_substitution_target transformed_ctx
 
 (*let _ =*)
 (*let args_length = Array.length Sys.argv in*)

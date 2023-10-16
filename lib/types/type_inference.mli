@@ -10,7 +10,6 @@ type substitution_target =
   | Substitution of substitution
   | PolyType of Types.poly_type
   | MonoType of Types.mono_type
-[@@deriving show]
 
 val init_context : (string * Types.poly_type) list -> context
 val init_substitution : (string * Types.mono_type) list -> substitution
