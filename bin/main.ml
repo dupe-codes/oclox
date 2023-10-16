@@ -39,10 +39,45 @@ let run_file file_name =
     (run file_contents (Environment.global ()))
 
 let _ =
-  let args_length = Array.length Sys.argv in
-  let errored_invocation = if args_length > 2 then true else false in
-  if errored_invocation then
-    let _ = Printf.printf "Usage: oclox [script]" in
-    exit 64
-  else if Array.length Sys.argv = 2 then run_file Sys.argv.(1)
-  else run_prompt (Oclox.Environment.global ())
+  let open Oclox in
+  let subs =
+    [
+      ("a", Types.TypeConstructor Types.Int);
+      ("b", Types.TypeConstructor Types.Bool);
+      ( "c",
+        Types.TypeConstructor
+          (Types.Arrow
+             [
+               Types.TypeConstructor Types.Int; Types.TypeConstructor Types.Int;
+             ]) );
+    ]
+  in
+  let ctx =
+    [
+      ("a", Types.MonoType (Types.TypeVar "a"));
+      ( "i",
+        Types.UniversallyQuantified
+          ( "f",
+            Types.MonoType
+              (Types.TypeConstructor
+                 (Types.Arrow
+                    [ Types.TypeVar "b"; Types.TypeConstructor Types.Bool ])) )
+      );
+    ]
+  in
+  let context = Type_inference.init_context ctx in
+  let s1 = Type_inference.init_substitution subs in
+  let transformed_ctx =
+    Type_inference.apply s1 (Type_inference.Context context)
+  in
+  Format.printf "@[<v 2>Transformed context:@,%a@,@]"
+    Type_inference.pp_substitution_target transformed_ctx
+
+(*let _ =*)
+(*let args_length = Array.length Sys.argv in*)
+(*let errored_invocation = if args_length > 2 then true else false in*)
+(*if errored_invocation then*)
+(*let _ = Printf.printf "Usage: oclox [script]" in*)
+(*exit 64*)
+(*else if Array.length Sys.argv = 2 then run_file Sys.argv.(1)*)
+(*else run_prompt (Oclox.Environment.global ())*)
