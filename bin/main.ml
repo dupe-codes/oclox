@@ -40,34 +40,17 @@ let run_file file_name =
 
 let _ =
   let open Oclox in
-  let ctx =
-    Type_inference.init_context
-      [
-        ("a", Types.MonoType (Types.TypeVar "a"));
-        ( "f",
-          Types.Quantified
-            ( "i",
-              Types.MonoType
-                (Types.TypeFunctionApplication
-                   (Types.Arrow [ Types.TypeVar "i"; Types.TypeVar "j" ])) ) );
-        ( "g",
-          Types.MonoType
-            (Types.TypeFunctionApplication
-               (Types.Arrow [ Types.TypeVar "d"; Types.TypeVar "d" ])) );
-      ]
-  in
-  let mono_type =
+  let a = Types.TypeFunctionApplication (Arrow [ TypeVar "a"; TypeVar "b" ]) in
+  let b =
     Types.TypeFunctionApplication
       (Arrow
          [
-           TypeVar "a";
-           TypeFunctionApplication
-             (Arrow [ TypeVar "b"; TypeFunctionApplication Int ]);
+           TypeVar "c";
+           TypeFunctionApplication (Arrow [ TypeVar "a"; TypeVar "d" ]);
          ])
   in
-  Format.printf "@[<v 2>Generalized mono type:@,%a@,@]"
-    Types_printer.print_poly_type
-    (Type_inference.generalize ctx mono_type)
+  Format.printf "@[<v 2>Unifying sub: @,%a@,@]" Types_printer.print_substitution
+    (Type_inference.unify a b)
 
 (*let _ =*)
 (*let args_length = Array.length Sys.argv in*)

@@ -21,12 +21,11 @@ type substitution_target =
 let rec apply_monotype_substitution substitution = function
   | Types.TypeVar v -> (
       match Map.find substitution v with Some t -> t | None -> Types.TypeVar v)
-  | Types.TypeFunctionApplication type_function ->
+  | TypeFunctionApplication type_function ->
       TypeFunctionApplication
         (match type_function with
-        | Types.Arrow mus ->
-            Types.Arrow
-              (List.map mus ~f:(apply_monotype_substitution substitution))
+        | Arrow mus ->
+            Arrow (List.map mus ~f:(apply_monotype_substitution substitution))
         | t -> t)
 
 and apply_polytype_substitution substitution = function
@@ -56,9 +55,9 @@ and apply substitution target =
 
 let rec free_vars_in_mono_type = function
   | Types.TypeVar v -> Set.singleton (module String) v
-  | Types.TypeFunctionApplication fn -> (
+  | TypeFunctionApplication fn -> (
       match fn with
-      | Types.Arrow mus ->
+      | Arrow mus ->
           Set.union_list
             (module String)
             (List.map mus ~f:free_vars_in_mono_type)
@@ -66,7 +65,7 @@ let rec free_vars_in_mono_type = function
 
 and free_vars_in_poly_type = function
   | Types.MonoType t -> free_vars_in_mono_type t
-  | Types.Quantified (t_var, poly_t) ->
+  | Quantified (t_var, poly_t) ->
       Set.diff
         (free_vars_in_poly_type poly_t)
         (Set.singleton (module String) t_var)
@@ -87,9 +86,9 @@ let generalize ctx mono_type =
 let rec contains type_a t_var =
   match type_a with
   | Types.TypeVar a -> String.equal a t_var
-  | Types.TypeFunctionApplication fn -> (
+  | TypeFunctionApplication fn -> (
       match fn with
-      | Types.Arrow mus ->
+      | Arrow mus ->
           List.fold mus ~init:false ~f:(fun acc t -> acc || contains t t_var)
       | _ -> false)
 
@@ -127,6 +126,9 @@ and unify_substitutions subs (type_a, type_b) =
       | Substitution s -> s
       | _ -> failwith "Invalid substitution application")
   | _ -> failwith "Invalid substitution application"
+
+let rec infer_expr_type ctx expr = (init_substitution [], Types.Unit)
+let rec infer_stmt_type ctx stmt = Types.Unit
 
 (* Output types *)
 type typed_statement = |
