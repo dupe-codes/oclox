@@ -71,7 +71,7 @@ and free_vars_in_poly_type = function
         (free_vars_in_poly_type poly_t)
         (Set.singleton (module String) t_var)
 
-let rec free_vars_in_ctx ctx =
+let free_vars_in_ctx ctx =
   Map.fold ctx
     ~init:(Set.empty (module String))
     ~f:(fun ~key:_ ~data:t free_vars ->
@@ -84,8 +84,49 @@ let generalize ctx mono_type =
   Set.fold quantifiers ~init:(Types.MonoType mono_type) ~f:(fun acc t_var ->
       Types.Quantified (t_var, acc))
 
-(* TODO: Function for unification of two types,
-   mono_type -> mono_type -> substitution *)
+let rec contains type_a t_var =
+  match type_a with
+  | Types.TypeVar a -> String.equal a t_var
+  | Types.TypeFunctionApplication fn -> (
+      match fn with
+      | Types.Arrow mus ->
+          List.fold mus ~init:false ~f:(fun acc t -> acc || contains t t_var)
+      | _ -> false)
+
+exception UnificationFailure of string
+
+let rec unify type_a type_b =
+  match (type_a, type_b) with
+  | Types.TypeVar a, Types.TypeVar b when String.equal a b ->
+      init_substitution []
+  | TypeVar a, t ->
+      if contains t a then raise (UnificationFailure "Infinite type")
+      else init_substitution [ (a, t) ]
+  | _, TypeVar _ -> unify type_b type_a
+  | TypeFunctionApplication a, TypeFunctionApplication b ->
+      unify_type_functions a b
+
+and unify_type_functions fn_a fn_b =
+  match (fn_a, fn_b) with
+  | Types.Int, Types.Int | Bool, Bool | Unit, Unit -> init_substitution []
+  | Arrow a_mus, Arrow b_mus when List.length a_mus <> List.length b_mus ->
+      raise
+        (UnificationFailure
+           "Could not unify type functions of differing lengths")
+  | Arrow a_mus, Arrow b_mus ->
+      let zipped = List.zip_exn a_mus b_mus in
+      List.fold ~init:(init_substitution []) ~f:unify_substitutions zipped
+  | _ ->
+      raise
+        (UnificationFailure "Could not unify types: differing type functions")
+
+and unify_substitutions subs (type_a, type_b) =
+  match (apply subs (MonoType type_a), apply subs (MonoType type_b)) with
+  | MonoType subbed_a, MonoType subbed_b -> (
+      match apply subs (Substitution (unify subbed_a subbed_b)) with
+      | Substitution s -> s
+      | _ -> failwith "Invalid substitution application")
+  | _ -> failwith "Invalid substitution application"
 
 (* Output types *)
 type typed_statement = |

@@ -40,92 +40,34 @@ let run_file file_name =
 
 let _ =
   let open Oclox in
-  let subs =
-    [
-      ("a", Types.TypeFunctionApplication Types.Int);
-      ("b", Types.TypeFunctionApplication Types.Bool);
-      ( "c",
-        Types.TypeFunctionApplication
-          (Types.Arrow
-             [
-               Types.TypeFunctionApplication Types.Int;
-               Types.TypeFunctionApplication Types.Int;
-             ]) );
-      ("d", Types.TypeFunctionApplication Types.Unit);
-    ]
-  in
   let ctx =
-    [
-      ("a", Types.MonoType (Types.TypeVar "a"));
-      ( "f",
-        Types.Quantified
-          ( "i",
-            Types.MonoType
-              (Types.TypeFunctionApplication
-                 (Types.Arrow [ Types.TypeVar "i"; Types.TypeVar "b" ])) ) );
-      ( "g",
-        Types.MonoType
-          (Types.TypeFunctionApplication
-             (Types.Arrow [ Types.TypeVar "d"; Types.TypeVar "d" ])) );
-    ]
-  in
-  let context = Type_inference.init_context ctx in
-  let s1 = Type_inference.init_substitution subs in
-  let _ =
-    Format.printf "@[<v 2>Substitution:@,%a@,@]"
-      Types_printer.print_substitution s1
-  in
-  let _ =
-    Format.printf "\n\n@[<v 2>Context:@,%a@,@]" Types_printer.print_context
-      context
-  in
-  let transformed_ctx =
-    Type_inference.apply s1 (Type_inference.Context context)
-  in
-  let _ =
-    Format.printf "\n\n@[<v 2>Transformed context:@,%a@,@]"
-      Types_printer.print_substitution_target transformed_ctx
-  in
-  let s2 =
-    Type_inference.init_substitution
+    Type_inference.init_context
       [
-        ( "z",
-          Types.TypeFunctionApplication
-            (Types.Arrow [ Types.TypeVar "zz"; Types.TypeVar "a" ]) );
-        ("x", Types.TypeVar "f");
-        ( "y",
-          Types.TypeFunctionApplication
-            (Types.Arrow
-               [
-                 Types.TypeVar "c";
-                 Types.TypeFunctionApplication
-                   (Types.Arrow [ Types.TypeVar "b"; Types.TypeVar "u" ]);
-               ]) );
+        ("a", Types.MonoType (Types.TypeVar "a"));
+        ( "f",
+          Types.Quantified
+            ( "i",
+              Types.MonoType
+                (Types.TypeFunctionApplication
+                   (Types.Arrow [ Types.TypeVar "i"; Types.TypeVar "j" ])) ) );
+        ( "g",
+          Types.MonoType
+            (Types.TypeFunctionApplication
+               (Types.Arrow [ Types.TypeVar "d"; Types.TypeVar "d" ])) );
       ]
   in
-  let _ =
-    Format.printf "\n\n@[<v 2>Substitution 2:@,%a@,@]"
-      Types_printer.print_substitution s2
+  let mono_type =
+    Types.TypeFunctionApplication
+      (Arrow
+         [
+           TypeVar "a";
+           TypeFunctionApplication
+             (Arrow [ TypeVar "b"; TypeFunctionApplication Int ]);
+         ])
   in
-  let _ =
-    Format.printf "\n\n@[<v 2>Combined substitution:@,%a@,@]"
-      Types_printer.print_substitution_target
-      (Type_inference.apply s1 (Type_inference.Substitution s2))
-  in
-  let poly =
-    Types.MonoType
-      (Types.TypeFunctionApplication
-         (Types.Arrow [ Types.TypeVar "a"; Types.TypeVar "b" ]))
-  in
-  let _ =
-    Format.printf "\n\n@[<v 2>Transformed polytype:@,%a@,@]"
-      Types_printer.print_substitution_target
-      (Type_inference.apply s1 (Type_inference.PolyType poly))
-  in
-  let mono = Types.TypeVar "a" in
-  Format.printf "\n\n@[<v 2>Transformed monotype:@,%a@,@]"
-    Types_printer.print_substitution_target
-    (Type_inference.apply s1 (Type_inference.MonoType mono))
+  Format.printf "@[<v 2>Generalized mono type:@,%a@,@]"
+    Types_printer.print_poly_type
+    (Type_inference.generalize ctx mono_type)
 
 (*let _ =*)
 (*let args_length = Array.length Sys.argv in*)

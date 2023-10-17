@@ -14,6 +14,8 @@ type substitution_target =
 val init_context : (string * Types.poly_type) list -> context
 val init_substitution : (string * Types.mono_type) list -> substitution
 val apply : substitution -> substitution_target -> substitution_target
+val generalize : context -> Types.mono_type -> Types.poly_type
+val unify : Types.mono_type -> Types.mono_type -> substitution
 
 (* struct holding AST node and its inferred type *)
 
