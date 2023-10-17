@@ -30,7 +30,6 @@ let print_context fmt (context : Type_inference.context) =
     Stdlib.Format.fprintf fmt "%s : " key;
     print_poly_type fmt data
   in
-  (* Convert the context map to a list and print each item *)
   Map.to_alist context
   |> List.iter ~f:(fun item ->
          pp_item fmt item;

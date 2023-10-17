@@ -2,7 +2,7 @@
   (public_name oclox)
   (name oclox)
   (libraries base unix sexplib)
-  (preprocess (pps ppx_compare ppx_sexp_conv ppx_deriving.show))
+  (preprocess (pps ppx_compare ppx_sexp_conv))
   (wrapped true))
 
 (include_subdirs unqualified)

@@ -47,25 +47,42 @@ and apply substitution target =
       Substitution
         (Map.merge substitution sub ~f:(fun ~key:_ -> function
            | `Left t -> Some t
-           | `Right t -> (
-               match apply substitution (MonoType t) with
-               | MonoType t -> Some t
-               | _ -> failwith "Invalid substitution application")
-           | `Both (_, t) -> (
+           | `Right t | `Both (_, t) -> (
                match apply substitution (MonoType t) with
                | MonoType t -> Some t
                | _ -> failwith "Invalid substitution application")))
   | PolyType t -> PolyType (apply_polytype_substitution substitution t)
   | MonoType t -> MonoType (apply_monotype_substitution substitution t)
 
-(* TODO: Define method to instantiate type vars for quantified expressions,
-        e.g., Va Vb a -> b => t0 -> t1 *)
+let rec free_vars_in_mono_type = function
+  | Types.TypeVar v -> Set.singleton (module String) v
+  | Types.TypeFunctionApplication fn -> (
+      match fn with
+      | Types.Arrow mus ->
+          Set.union_list
+            (module String)
+            (List.map mus ~f:free_vars_in_mono_type)
+      | _ -> Set.empty (module String))
 
-(* TODO: Define generalize method that, given a context and a mono type, returns a
-   universally quantified polytype *)
+and free_vars_in_poly_type = function
+  | Types.MonoType t -> free_vars_in_mono_type t
+  | Types.Quantified (t_var, poly_t) ->
+      Set.diff
+        (free_vars_in_poly_type poly_t)
+        (Set.singleton (module String) t_var)
 
-(* TODO: Diff function to get set difference of two free variables sets,
-   and function to calculate free variables in a type or context *)
+let rec free_vars_in_ctx ctx =
+  Map.fold ctx
+    ~init:(Set.empty (module String))
+    ~f:(fun ~key:_ ~data:t free_vars ->
+      Set.union free_vars (free_vars_in_poly_type t))
+
+let generalize ctx mono_type =
+  let quantifiers =
+    Set.diff (free_vars_in_mono_type mono_type) (free_vars_in_ctx ctx)
+  in
+  Set.fold quantifiers ~init:(Types.MonoType mono_type) ~f:(fun acc t_var ->
+      Types.Quantified (t_var, acc))
 
 (* TODO: Function for unification of two types,
    mono_type -> mono_type -> substitution *)
