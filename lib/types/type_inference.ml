@@ -12,6 +12,27 @@ type substitution = Types.mono_type Map.M(String).t
 let init_substitution (mappings : (string * Types.mono_type) list) =
   Map.of_alist_exn (module String) mappings
 
+let print_context fmt context =
+  let pp_item fmt (key, data) =
+    Stdlib.Format.fprintf fmt "%s : " key;
+    Types_printer.print_poly_type fmt data
+  in
+  Map.to_alist context
+  |> List.iter ~f:(fun item ->
+         pp_item fmt item;
+         Stdlib.Format.fprintf fmt "; ")
+
+let print_substitution fmt substitution =
+  let pp_item fmt (key, data) =
+    Stdlib.Format.fprintf fmt "%s => " key;
+    Types_printer.print_mono_type fmt data
+  in
+  (* Convert the substitution map to a list and print each item *)
+  Map.to_alist substitution
+  |> List.iter ~f:(fun item ->
+         pp_item fmt item;
+         Stdlib.Format.fprintf fmt "; ")
+
 type substitution_target =
   | Context of context
   | Substitution of substitution
@@ -269,8 +290,14 @@ let rec infer_stmt_type (ctx, types) stmt =
             TypeFunctionApplication
               Unit (* No explicit return, assume unit/void *)
       in
+      let subbed_param_types =
+        List.map params ~f:(fun param ->
+            instantiate
+              (Map.find_exn body_ctx (Token.get_identifier_name param)))
+      in
       let fn_type =
-        Types.TypeFunctionApplication (Arrow (param_types @ [ return_type ]))
+        Types.TypeFunctionApplication
+          (Arrow (subbed_param_types @ [ return_type ]))
       in
       let new_ctx =
         Map.set body_ctx ~key:fn_name ~data:(Types.MonoType fn_type)

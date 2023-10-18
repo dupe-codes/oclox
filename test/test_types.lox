@@ -6,4 +6,4 @@ fun x(a) {
   return a + y;
 }
 
-x(2);
+x(true);

@@ -26,45 +26,6 @@ and print_poly_type fmt = function
       Stdlib.Format.fprintf fmt "∀ %s, " type_var;
       print_poly_type fmt poly
 
-let print_context fmt (context : Type_inference.context) =
-  let pp_item fmt (key, data) =
-    Stdlib.Format.fprintf fmt "%s : " key;
-    print_poly_type fmt data
-  in
-  Map.to_alist context
-  |> List.iter ~f:(fun item ->
-         pp_item fmt item;
-         Stdlib.Format.fprintf fmt "; ")
-
-let print_substitution fmt (substitution : Type_inference.substitution) =
-  let pp_item fmt (key, data) =
-    Stdlib.Format.fprintf fmt "%s => " key;
-    print_mono_type fmt data
-  in
-  (* Convert the substitution map to a list and print each item *)
-  Map.to_alist substitution
-  |> List.iter ~f:(fun item ->
-         pp_item fmt item;
-         Stdlib.Format.fprintf fmt "; ")
-
 let print_types types =
   let _ = List.iter types ~f:(Stdlib.Format.printf "%a\n" print_mono_type) in
   Stdlib.Format.pp_print_flush Stdlib.Format.std_formatter ()
-
-let print_substitution_target fmt = function
-  | Type_inference.Context context ->
-      Stdlib.Format.fprintf fmt "Context(";
-      print_context fmt context;
-      Stdlib.Format.fprintf fmt ")"
-  | Type_inference.Substitution substitution ->
-      Stdlib.Format.fprintf fmt "Substitution(";
-      print_substitution fmt substitution;
-      Stdlib.Format.fprintf fmt ")"
-  | Type_inference.PolyType poly_type ->
-      Stdlib.Format.fprintf fmt "PolyType(";
-      print_poly_type fmt poly_type;
-      Stdlib.Format.fprintf fmt ")"
-  | Type_inference.MonoType mono_type ->
-      Stdlib.Format.fprintf fmt "MonoType(";
-      print_mono_type fmt mono_type;
-      Stdlib.Format.fprintf fmt ")"
