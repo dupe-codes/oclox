@@ -1,7 +1,8 @@
 open Base
 
 let rec print_type_function fmt = function
-  | Types.Int -> Stdlib.Format.fprintf fmt "Int"
+  | Types.Float -> Stdlib.Format.fprintf fmt "Float"
+  | Types.String -> Stdlib.Format.fprintf fmt "String"
   | Types.Bool -> Stdlib.Format.fprintf fmt "Bool"
   | Types.Unit -> Stdlib.Format.fprintf fmt "()"
   | Types.Arrow types ->
@@ -45,6 +46,10 @@ let print_substitution fmt (substitution : Type_inference.substitution) =
   |> List.iter ~f:(fun item ->
          pp_item fmt item;
          Stdlib.Format.fprintf fmt "; ")
+
+let print_types types =
+  let _ = List.iter types ~f:(Stdlib.Format.printf "%a\n" print_mono_type) in
+  Stdlib.Format.pp_print_flush Stdlib.Format.std_formatter ()
 
 let print_substitution_target fmt = function
   | Type_inference.Context context ->

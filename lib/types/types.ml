@@ -14,10 +14,12 @@
  *)
 type type_var = string
 
-type type_function = Arrow of mono_type list | Int | Bool | Unit
+type type_function = Arrow of mono_type list | Float | Bool | String | Unit
 and mono_type = TypeVar of type_var | TypeFunctionApplication of type_function
 
 type poly_type = MonoType of mono_type | Quantified of type_var * poly_type
+
+let mono_equal type1 type2 = type1 = type2
 
 let create_new_type_var =
   let counter = ref 0 in

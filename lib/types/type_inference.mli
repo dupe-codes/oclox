@@ -17,6 +17,6 @@ val apply : substitution -> substitution_target -> substitution_target
 val generalize : context -> Types.mono_type -> Types.poly_type
 val unify : Types.mono_type -> Types.mono_type -> substitution
 
-(* struct holding AST node and its inferred type *)
-
-val infer : Statement.t list -> typed_statement list
+(* TODO: Eventually, return new typed statement struct, annotating all
+   AST nodes with type info *)
+val infer : Statement.t list -> Types.mono_type list

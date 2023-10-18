@@ -9,12 +9,17 @@ let run source env =
       | Some statements ->
           let resolver = Resolver.init () |> Resolver.resolve statements in
           let _ =
-            Printf.printf "Resolved variables:\n%s\n\n%!"
+            Printf.printf "Resolved variables:\n%s\n%!"
               (Resolver.resolved_locals_to_string resolver)
           in
           let _ =
             Printf.printf "AST:\n%s\n\n%!"
               (Ast_printer.print_statements statements)
+          in
+          let types = Type_inference.infer statements in
+          let _ =
+            Printf.printf "Resolved %d Types:\n%!" (List.length types);
+            Types_printer.print_types types
           in
           Interpreter.interpret statements env resolver
       | None -> Lox_error.init 0 "Parsing failure")
@@ -38,25 +43,25 @@ let run_file file_name =
       | Lox_error.Runtime_error -> exit 70)
     (run file_contents (Environment.global ()))
 
-let _ =
-  let open Oclox in
-  let a = Types.TypeFunctionApplication (Arrow [ TypeVar "a"; TypeVar "b" ]) in
-  let b =
-    Types.TypeFunctionApplication
-      (Arrow
-         [
-           TypeVar "c";
-           TypeFunctionApplication (Arrow [ TypeVar "a"; TypeVar "d" ]);
-         ])
-  in
-  Format.printf "@[<v 2>Unifying sub: @,%a@,@]" Types_printer.print_substitution
-    (Type_inference.unify a b)
-
 (*let _ =*)
-(*let args_length = Array.length Sys.argv in*)
-(*let errored_invocation = if args_length > 2 then true else false in*)
-(*if errored_invocation then*)
-(*let _ = Printf.printf "Usage: oclox [script]" in*)
-(*exit 64*)
-(*else if Array.length Sys.argv = 2 then run_file Sys.argv.(1)*)
-(*else run_prompt (Oclox.Environment.global ())*)
+(*let open Oclox in*)
+(*let a = Types.TypeFunctionApplication (Arrow [ TypeVar "a"; TypeVar "b" ]) in*)
+(*let b =*)
+(*Types.TypeFunctionApplication*)
+(*(Arrow*)
+(*[*)
+(*TypeVar "c";*)
+(*TypeFunctionApplication (Arrow [ TypeVar "a"; TypeVar "d" ]);*)
+(*])*)
+(*in*)
+(*Format.printf "@[<v 2>Unifying sub: @,%a@,@]" Types_printer.print_substitution*)
+(*(Type_inference.unify a b)*)
+
+let _ =
+  let args_length = Array.length Sys.argv in
+  let errored_invocation = if args_length > 2 then true else false in
+  if errored_invocation then
+    let _ = Printf.printf "Usage: oclox [script]" in
+    exit 64
+  else if Array.length Sys.argv = 2 then run_file Sys.argv.(1)
+  else run_prompt (Oclox.Environment.global ())
