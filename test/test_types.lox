@@ -1,2 +1,9 @@
-var x = 1;
-(x + 1) + 2;
+// var x = true;
+// (x + 1) + 2;
+
+fun x(a) {
+  var y = 2;
+  return a + y;
+}
+
+x(2);

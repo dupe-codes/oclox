@@ -156,6 +156,11 @@ let apply_sub_to_sub sub1 sub2 =
   | Substitution sub -> sub
   | _ -> failwith "Invalid substitution application"
 
+let apply_sub_to_type sub t =
+  match apply sub (MonoType t) with
+  | MonoType t -> t
+  | _ -> failwith "Invalid substitution application"
+
 let rec infer_expr_type ctx expr =
   let empty_sub = init_substitution [] in
   match expr with
@@ -176,10 +181,15 @@ let rec infer_expr_type ctx expr =
       let op_type = Map.find_exn ctx op_token in
       match op_type with
       | Types.MonoType
-          (TypeFunctionApplication (Arrow [ param1; param2; return_type ]))
-        when Types.mono_equal param1 left_type
-             && Types.mono_equal param2 right_type ->
-          (apply_sub_to_sub right_sub left_sub, return_type)
+          (TypeFunctionApplication (Arrow [ param1; param2; return_type ])) ->
+          let unify_sub1 = unify param1 left_type in
+          let unify_sub2 = unify param2 right_type in
+          let final_sub =
+            apply_sub_to_sub unify_sub2
+              (apply_sub_to_sub unify_sub1
+                 (apply_sub_to_sub right_sub left_sub))
+          in
+          (final_sub, apply_sub_to_type final_sub return_type)
       | _ ->
           raise
             (UnificationFailure
@@ -190,25 +200,82 @@ let rec infer_expr_type ctx expr =
       match Map.find ctx var with
       | Some t -> (empty_sub, instantiate t)
       | None -> raise (UnificationFailure ("Undefined variable " ^ var)))
+  | Call (callee, _, params) ->
+      (* For now, only handle functions with one parameter *)
+      let callee_sub, callee_type = infer_expr_type ctx callee in
+      let param_sub, param_type =
+        infer_expr_type
+          (apply_sub_to_context callee_sub ctx)
+          (List.hd_exn params)
+      in
+      let new_t_var = Types.create_new_type_var () in
+      let return_sub =
+        unify
+          (apply_sub_to_type param_sub callee_type)
+          (Types.TypeFunctionApplication
+             (Arrow [ param_type; TypeVar new_t_var ]))
+      in
+      ( apply_sub_to_sub return_sub (apply_sub_to_sub param_sub callee_sub),
+        apply_sub_to_type return_sub (TypeVar new_t_var) )
   | _ -> failwith "TODO"
 
-let infer_stmt_type (ctx, types) stmt =
+let rec infer_stmt_type (ctx, types) stmt =
   match stmt with
   | Statement.Expression e ->
-      let _, e_type = infer_expr_type ctx e in
-      (ctx, e_type :: types)
+      let sub, e_type = infer_expr_type ctx e in
+      (apply_sub_to_context sub ctx, e_type :: types)
+  | Return (_, e) -> (
+      match e with
+      | Some e ->
+          let sub, e_type = infer_expr_type ctx e in
+          (apply_sub_to_context sub ctx, e_type :: types)
+      | None -> (ctx, Types.TypeFunctionApplication Unit :: types))
   | Var (x, e) ->
       let var_name = Token.get_identifier_name x in
-      let inferred_type =
+      let sub, inferred_type =
         match e with
         (* Use unit type as a compromise for an uninitialized variable *)
-        | None -> Types.TypeFunctionApplication Unit
-        | Some e -> snd (infer_expr_type ctx e)
+        | None -> (init_substitution [], Types.TypeFunctionApplication Unit)
+        | Some e -> infer_expr_type ctx e
       in
+      let new_ctx = apply_sub_to_context sub ctx in
       let new_ctx =
-        Map.set ctx ~key:var_name ~data:(generalize ctx inferred_type)
+        Map.set new_ctx ~key:var_name ~data:(generalize new_ctx inferred_type)
       in
       (new_ctx, inferred_type :: types)
+  | Function { name; params; body } ->
+      let fn_name = Token.get_identifier_name name in
+      let param_types =
+        List.map params ~f:(fun _ ->
+            Types.TypeVar (Types.create_new_type_var ()))
+      in
+      (* TODO: Also add a context entry for the fn sig, to handle recursion.
+         E.g., name : t0 -> t1 *)
+      let extended_ctx =
+        List.fold2_exn params param_types ~init:ctx
+          ~f:(fun acc_ctx param param_type ->
+            let param_name = Token.get_identifier_name param in
+            Map.set acc_ctx ~key:param_name ~data:(Types.MonoType param_type))
+      in
+      (* TODO: Use the returned context from processing the body? *)
+      let body_ctx, body_types =
+        List.fold_left body ~init:(extended_ctx, []) ~f:infer_stmt_type
+      in
+      (* Determine the return type - for simplicity, we take the type of the last statement *)
+      let return_type =
+        match List.last body_types with
+        | Some t -> t
+        | None ->
+            TypeFunctionApplication
+              Unit (* No explicit return, assume unit/void *)
+      in
+      let fn_type =
+        Types.TypeFunctionApplication (Arrow (param_types @ [ return_type ]))
+      in
+      let new_ctx =
+        Map.set body_ctx ~key:fn_name ~data:(Types.MonoType fn_type)
+      in
+      (new_ctx, fn_type :: types)
   | _ -> failwith "TODO"
 
 (* Output types *)

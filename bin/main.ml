@@ -8,14 +8,14 @@ let run source env =
       match Parser.parse parser with
       | Some statements ->
           let resolver = Resolver.init () |> Resolver.resolve statements in
-          let _ =
-            Printf.printf "Resolved variables:\n%s\n%!"
-              (Resolver.resolved_locals_to_string resolver)
-          in
-          let _ =
-            Printf.printf "AST:\n%s\n\n%!"
-              (Ast_printer.print_statements statements)
-          in
+          (*let _ =*)
+          (*Printf.printf "Resolved variables:\n%s\n%!"*)
+          (*(Resolver.resolved_locals_to_string resolver)*)
+          (*in*)
+          (*let _ =*)
+          (*Printf.printf "AST:\n%s\n\n%!"*)
+          (*(Ast_printer.print_statements statements)*)
+          (*in*)
           let types = Type_inference.infer statements in
           let _ =
             Printf.printf "Resolved %d Types:\n%!" (List.length types);
