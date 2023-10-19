@@ -57,6 +57,10 @@ and print_poly_type fmt = function
       Format.fprintf fmt "∀ %s, " type_var;
       print_poly_type fmt poly
 
+let print_mono_types types =
+  let _ = List.iter (Format.printf "%a\n" print_mono_type) types in
+  Format.pp_print_flush Format.std_formatter ()
+
 let print_types types =
   let _ = List.iter (Format.printf "%a\n" print_poly_type) types in
   Format.pp_print_flush Format.std_formatter ()

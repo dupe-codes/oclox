@@ -1,0 +1,43 @@
+fun double(x, y) {
+  var z = 1;
+  return z + x;
+}
+
+double(1, 1);
+
+fun no_param() {
+  return "I have no parameter";
+}
+
+var result = no_param();
+print result;
+
+// TODO: This is bounding both d and e to the same free
+//       typevar. Why?
+fun many_params(a, b, c, d, e) {
+   var a_b_c = a + b + c;
+   var d_or_e = ((d == 100) or (e == 100));
+   print a_b_c;
+   return a_b_c;
+   //print d_or_e;
+}
+many_params(1, 2, 3, true, true);
+
+// TODO: Test this once if statements are type checked
+// fun many_params(a, b, c, d) {
+//   var a_equals_b = a == b;
+//   if (a_equals_b == true) {
+//     var nice = "that's nice, a and b are equal!";
+//     print nice;
+//   } else {
+//     var other = 100;
+//     var c_or_d_equals_other = ((c + 1) == other) or ((d + 1) == other);
+//     if (c_or_d_equals_other == true) {
+//       var also_nice = "cool, c or d equal some other thing!";
+//       print also_nice;
+//     }
+//   }
+// }
+
+// many_params(1, 2, 100, 2);
+

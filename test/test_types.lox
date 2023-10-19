@@ -19,3 +19,5 @@ fun double_fun(x, y) {
     return x + z;
 }
 
+print double_fun(1, 1);
+double_fun(true, 1);

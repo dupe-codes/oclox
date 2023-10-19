@@ -27,20 +27,37 @@ let rec infer_expr_type ctx expr =
          TO handle none: use unit type as a single "parameter"
       *)
       let callee_sub, callee_type = infer_expr_type ctx callee in
-      let param_sub, param_type =
-        infer_expr_type
-          (apply_sub_to_context callee_sub ctx)
-          (List.hd_exn params)
+      (*let _ =*)
+      (*Stdlib.Printf.printf "\n Callee type: \n";*)
+      (*Types.print_mono_types [ callee_type ]*)
+      (*in*)
+      let params_sub, param_types =
+        if List.is_empty params then
+          (init_substitution [], [ Types.TypeFunctionApplication Unit ])
+        else
+          List.fold params
+            ~init:(init_substitution [], [])
+            ~f:(fun (sub, types) e ->
+              (* TODO: Do we need to propagate the context too?
+                 Or is it reflected in the accumulating substitution? *)
+              let param_sub, param_type =
+                infer_expr_type (apply_sub_to_context sub ctx) e
+              in
+              (apply_sub_to_sub param_sub sub, param_type :: types))
       in
-      let new_t_var = Types.create_new_type_var () in
+      (*let _ =*)
+      (*Stdlib.Printf.printf "\n Param types: \n";*)
+      (*Types.print_mono_types (List.rev param_types)*)
+      (*in*)
+      let return_t_var = Types.TypeVar (Types.create_new_type_var ()) in
       let return_sub =
         unify
-          (apply_sub_to_type param_sub callee_type)
+          (apply_sub_to_type params_sub callee_type)
           (Types.TypeFunctionApplication
-             (Arrow [ param_type; TypeVar new_t_var ]))
+             (Arrow (List.rev param_types @ [ return_t_var ])))
       in
-      ( apply_sub_to_sub return_sub (apply_sub_to_sub param_sub callee_sub),
-        apply_sub_to_type return_sub (TypeVar new_t_var) )
+      ( apply_sub_to_sub params_sub callee_sub |> apply_sub_to_sub return_sub,
+        apply_sub_to_type return_sub return_t_var )
   | Unary (_, _) -> failwith "TODO"
   | Assign (_, _, _) -> failwith "TODO"
 
@@ -144,17 +161,24 @@ and infer_fn_type ctx name params body =
         instantiate (Map.find_exn body_ctx (Token.get_identifier_name param)))
   in
   (* Remove parameters that we not bound in the body context - we generalize over
-     them in the function signature *)
+     them in the function signature
+     TODO: Only remove from context if v is a value for one of the params! You fool!
+     Other things could still be TypeVars! *)
   let fn_ctx =
     Map.filter
       ~f:(fun v ->
         match v with Types.MonoType (TypeVar _) -> false | _ -> true)
       body_ctx
   in
+  let final_param_types =
+    if List.is_empty subbed_param_types then
+      [ Types.TypeFunctionApplication Unit ]
+    else subbed_param_types
+  in
   let fn_type =
     generalize fn_ctx
       (Types.TypeFunctionApplication
-         (Arrow (subbed_param_types @ [ instantiate return_type ])))
+         (Arrow (final_param_types @ [ instantiate return_type ])))
   in
   let new_ctx = Map.set fn_ctx ~key:fn_name ~data:fn_type in
   (new_ctx, fn_type)
