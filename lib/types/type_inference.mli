@@ -2,21 +2,7 @@ open Base
 
 type typed_statement
 type typed_expr
-type context = Types.poly_type Map.M(String).t
-type substitution = Types.mono_type Map.M(String).t
-
-type substitution_target =
-  | Context of context
-  | Substitution of substitution
-  | PolyType of Types.poly_type
-  | MonoType of Types.mono_type
-
-val init_context : (string * Types.poly_type) list -> context
-val init_substitution : (string * Types.mono_type) list -> substitution
-val apply : substitution -> substitution_target -> substitution_target
-val generalize : context -> Types.mono_type -> Types.poly_type
-val unify : Types.mono_type -> Types.mono_type -> substitution
 
 (* TODO: Eventually, return new typed statement struct, annotating all
    AST nodes with type info *)
-val infer : Statement.t list -> Types.mono_type list
+val infer : Statement.t list -> Types.poly_type list
