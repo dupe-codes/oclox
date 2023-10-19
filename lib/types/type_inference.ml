@@ -13,29 +13,8 @@ let rec infer_expr_type ctx expr =
       (empty_sub, Types.TypeFunctionApplication String)
   (* TODO: How to handle function literals? *)
   | Literal _ -> (empty_sub, Types.TypeFunctionApplication Unit)
-  | Binary (left, op, right) -> (
-      (* Treat binary expressions as a special case of function applications *)
-      let left_sub, left_type = infer_expr_type ctx left in
-      let right_sub, right_type =
-        infer_expr_type (apply_sub_to_context left_sub ctx) right
-      in
-      let op_token = Token.type_to_string op.token_type in
-      let op_type = Map.find_exn ctx op_token in
-      match op_type with
-      | Types.MonoType
-          (TypeFunctionApplication (Arrow [ param1; param2; return_type ])) ->
-          let unify_sub1 = unify param1 left_type in
-          let unify_sub2 = unify param2 right_type in
-          let final_sub =
-            apply_sub_to_sub unify_sub2
-              (apply_sub_to_sub unify_sub1
-                 (apply_sub_to_sub right_sub left_sub))
-          in
-          (final_sub, apply_sub_to_type final_sub return_type)
-      | _ ->
-          raise
-            (UnificationFailure
-               ("Mismatched types for binary operator " ^ op_token)))
+  | Binary (left, op, right) | Logical (left, op, right) ->
+      infer_binary_op_types ctx left op right
   | Grouping e -> infer_expr_type ctx e
   | Variable (x, _) -> (
       let var = Token.get_identifier_name x in
@@ -43,7 +22,10 @@ let rec infer_expr_type ctx expr =
       | Some t -> (empty_sub, instantiate t)
       | None -> raise (UnificationFailure ("Undefined variable " ^ var)))
   | Call (callee, _, params) ->
-      (* NOTE: For now, only handle functions with one parameter *)
+      (* TODO: For now, only handle functions with one parameter
+         To handle multiple: iteratre over params list
+         TO handle none: use unit type as a single "parameter"
+      *)
       let callee_sub, callee_type = infer_expr_type ctx callee in
       let param_sub, param_type =
         infer_expr_type
@@ -59,9 +41,41 @@ let rec infer_expr_type ctx expr =
       in
       ( apply_sub_to_sub return_sub (apply_sub_to_sub param_sub callee_sub),
         apply_sub_to_type return_sub (TypeVar new_t_var) )
-  | _ -> failwith "TODO"
+  | Unary (_, _) -> failwith "TODO"
+  | Assign (_, _, _) -> failwith "TODO"
+
+and infer_binary_op_types ctx left op right =
+  (* Treat binary expressions as a special case of function applications *)
+  let left_sub, left_type = infer_expr_type ctx left in
+  let right_sub, right_type =
+    infer_expr_type (apply_sub_to_context left_sub ctx) right
+  in
+  let op_type = Token.type_to_string op.token_type |> Map.find_exn ctx in
+  match op_type with
+  | Types.MonoType
+      (TypeFunctionApplication (Arrow [ param1; param2; return_type ]))
+  | Types.Quantified
+      ( _,
+        Types.Quantified
+          ( _,
+            Types.MonoType
+              (TypeFunctionApplication (Arrow [ param1; param2; return_type ]))
+          ) ) ->
+      let unify_sub1 = unify param1 left_type in
+      let unify_sub2 = unify param2 right_type in
+      let final_sub =
+        apply_sub_to_sub right_sub left_sub
+        |> apply_sub_to_sub unify_sub1
+        |> apply_sub_to_sub unify_sub2
+      in
+      (final_sub, apply_sub_to_type final_sub return_type)
+  | _ ->
+      raise
+        (UnificationFailure
+           ("Mismatched types for binary operator " ^ Token.to_string op))
 
 let rec infer_stmt_type (ctx, types) stmt =
+  let unit_type = Types.MonoType (TypeFunctionApplication Unit) in
   match stmt with
   | Statement.Expression e ->
       let sub, e_type = infer_expr_type ctx e in
@@ -71,7 +85,7 @@ let rec infer_stmt_type (ctx, types) stmt =
       | Some e ->
           let sub, e_type = infer_expr_type ctx e in
           (apply_sub_to_context sub ctx, Types.MonoType e_type :: types)
-      | None -> (ctx, Types.MonoType (TypeFunctionApplication Unit) :: types))
+      | None -> (ctx, unit_type :: types))
   | Var (x, e) ->
       let var_name = Token.get_identifier_name x in
       let sub, inferred_type =
@@ -88,7 +102,18 @@ let rec infer_stmt_type (ctx, types) stmt =
   | Function { name; params; body } ->
       let new_ctx, fn_type = infer_fn_type ctx name params body in
       (new_ctx, fn_type :: types)
-  | _ -> failwith "TODO"
+  | Block stmts ->
+      let _ =
+        List.iter stmts ~f:(fun stmt ->
+            let _ = infer_stmt_type (ctx, types) stmt in
+            ())
+      in
+      (ctx, unit_type :: types)
+  | Print e ->
+      let _ = infer_expr_type ctx e in
+      (ctx, types)
+  (* TODO: type check sub components of each stmt *)
+  | If _ | While _ -> (ctx, unit_type :: types)
 
 and infer_fn_type ctx name params body =
   let fn_name = Token.get_identifier_name name in
@@ -138,19 +163,63 @@ and infer_fn_type ctx name params body =
 type typed_statement = |
 type typed_expr = |
 
+(* TODO: Make PLUS polymorphic but constrained to Float and String *)
+let float_binary_ops =
+  [
+    "PLUS";
+    "MINUS";
+    "SLASH";
+    "STAR";
+    "GREATER";
+    "GREATER_EQUAL";
+    "LESS";
+    "LESS_EQUAL";
+  ]
+
+let polymorphic_binary_ops = [ "EQUAL_EQUAL"; "BANG_EQUAL" ]
+
+(* TODO: Handle the fact that OR and AND accept "truthy" values;
+   e.g., 1 and (x == 2); is valid *)
+let boolean_ops = [ "OR"; "AND" ]
+
 let builtins_context =
   init_context
-    [
-      ( "PLUS",
-        Types.MonoType
-          (TypeFunctionApplication
-             (Arrow
-                [
-                  TypeFunctionApplication Float;
-                  TypeFunctionApplication Float;
-                  TypeFunctionApplication Float;
-                ])) );
-    ]
+    (List.map float_binary_ops ~f:(fun op ->
+         ( op,
+           Types.MonoType
+             (TypeFunctionApplication
+                (Arrow
+                   [
+                     TypeFunctionApplication Float;
+                     TypeFunctionApplication Float;
+                     TypeFunctionApplication Float;
+                   ])) ))
+    @ List.map polymorphic_binary_ops ~f:(fun op ->
+          let type_var1 = Types.create_new_type_var () in
+          let type_var2 = Types.create_new_type_var () in
+          ( op,
+            Types.Quantified
+              ( type_var1,
+                Quantified
+                  ( type_var2,
+                    MonoType
+                      (TypeFunctionApplication
+                         (Arrow
+                            [
+                              TypeVar type_var1;
+                              TypeVar type_var2;
+                              TypeFunctionApplication Bool;
+                            ])) ) ) ))
+    @ List.map boolean_ops ~f:(fun op ->
+          ( op,
+            Types.MonoType
+              (TypeFunctionApplication
+                 (Arrow
+                    [
+                      TypeFunctionApplication Bool;
+                      TypeFunctionApplication Bool;
+                      TypeFunctionApplication Bool;
+                    ])) )))
 
 (* TODO:
     - How do we handle context across a list of statements?
@@ -162,6 +231,10 @@ let builtins_context =
 (* TODO: Pass in a type env context (optionally) to propagate type info in a
    REPL session *)
 let infer (stmts : Statement.t list) =
+  (*let _ =*)
+  (*Stdlib.Format.printf "@[<v 2>Context: @,%a@,@]" Substitutions.print_context*)
+  (*builtins_context*)
+  (*in*)
   let initial_state = (builtins_context, []) in
   let _, inferred_types =
     List.fold_left ~f:infer_stmt_type ~init:initial_state stmts

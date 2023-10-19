@@ -19,7 +19,8 @@ let run source env =
           let types = Type_inference.infer statements in
           let _ =
             Printf.printf "Resolved %d Types:\n%!" (List.length types);
-            Types.print_types types
+            Types.print_types types;
+            Printf.printf "\n\nResults:\n\n"
           in
           Interpreter.interpret statements env resolver
       | None -> Lox_error.init 0 "Parsing failure")

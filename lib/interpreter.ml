@@ -105,12 +105,6 @@ let rec evaluate env resolver expr =
       apply_binary left_val right_val op
   | Variable ({ token_type = Token.IDENTIFIER name; line }, _) ->
       let distance = Resolver.get_resolved_var_depth resolver expr in
-      (*let _ =*)
-      (*Printf.printf "Resolved distance: %s\n%!"*)
-      (*(if Option.is_none distance then "None"*)
-      (*else string_of_int (Option.get distance))*)
-      (*in*)
-      (*let _ = Environment.print env in*)
       let result =
         if Option.is_none distance then Environment.get env name
         else Environment.get_at env name (Option.get distance)

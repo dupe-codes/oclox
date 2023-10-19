@@ -4,15 +4,15 @@ fun x(a) {
 }
 
 var j = x(2);
-j;
+print j;
 
 fun id(x) {
     return x;
 }
 
-id("hello");
-id(1);
-id(true);
+print id("hello");
+print id(1);
+print id(true);
 
 fun double_fun(x, y) {
     var z = 1;

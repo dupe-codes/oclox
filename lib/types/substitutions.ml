@@ -1,5 +1,7 @@
 open Base
 
+exception UnificationFailure of string
+
 type context = Types.poly_type Map.M(String).t
 
 let init_context (mappings : (string * Types.poly_type) list) =
@@ -65,10 +67,13 @@ and apply substitution target =
       Substitution
         (Map.merge substitution sub ~f:(fun ~key:_ -> function
            | `Left t -> Some t
-           | `Right t | `Both (_, t) -> (
+           | `Right t -> (
                match apply substitution (MonoType t) with
                | MonoType t -> Some t
-               | _ -> failwith "Invalid substitution application")))
+               | _ -> failwith "Invalid substitution application")
+           | `Both (t1, t2) ->
+               if Types.mono_equal t1 t2 then Some t2
+               else raise (UnificationFailure "Could not unify types")))
   | PolyType t -> PolyType (apply_polytype_substitution substitution t)
   | MonoType t -> MonoType (apply_monotype_substitution substitution t)
 
@@ -128,8 +133,6 @@ let rec instantiate ?(mappings = Map.empty (module String)) poly_type =
   | Types.Quantified (q_var, sigma) ->
       let fresh_var = Types.TypeVar (Types.create_new_type_var ()) in
       instantiate ~mappings:(Map.set mappings ~key:q_var ~data:fresh_var) sigma
-
-exception UnificationFailure of string
 
 let rec unify type_a type_b =
   match (type_a, type_b) with
