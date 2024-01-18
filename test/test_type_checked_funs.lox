@@ -1,9 +1,20 @@
 fun double(x, y) {
   var z = 1;
+  //var unused = (y == true);
   return z + x;
 }
 
 double(1, 1);
+//double("hello", "hello");
+
+// bad first param
+//double("foobar", 1);
+
+// too many parameters
+//double(1, 1, 1, 1);
+
+// too few parameters
+//double();
 
 fun no_param() {
   return "I have no parameter";

@@ -22,10 +22,6 @@ let rec infer_expr_type ctx expr =
       | Some t -> (empty_sub, instantiate t)
       | None -> raise (UnificationFailure ("Undefined variable " ^ var)))
   | Call (callee, _, params) ->
-      (* TODO: For now, only handle functions with one parameter
-         To handle multiple: iteratre over params list
-         TO handle none: use unit type as a single "parameter"
-      *)
       let callee_sub, callee_type = infer_expr_type ctx callee in
       (*let _ =*)
       (*Stdlib.Printf.printf "\n Callee type: \n";*)
